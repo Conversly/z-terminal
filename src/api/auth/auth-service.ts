@@ -1,0 +1,111 @@
+import { generateTokenPair, validateRefreshToken } from '../../shared/jwt';
+import { db } from '../../loaders/postgres';
+import {
+  authMethod as authMethodTable,
+  user as userTable,
+} from '../../drizzle/schema';
+import { eq } from 'drizzle-orm';
+import ApiError from '../../utils/apiError';
+import httpStatus from 'http-status';
+import {
+  handleNewOauthUser,
+  verifyGoogleCredentials,
+} from './auth-helper';
+
+import {
+  GoogleAuthResponse,
+  RefreshTokenResponse,
+} from './auth-types';
+
+export const handleGoogleOauth = async (data: {
+  isVerify: boolean;
+  code: string;
+  credential: string;
+  inviteCode?: string;
+}): Promise<GoogleAuthResponse> => {
+  const { isVerify, code, credential, inviteCode } = data;
+
+  const { credentialPayload, oidcToken } = await verifyGoogleCredentials(
+    code,
+    credential,
+  );
+
+  const existingAuth = await db
+    .select()
+    .from(authMethodTable)
+    .where(eq(authMethodTable.googleSub, credentialPayload.sub))
+    .innerJoin(userTable, eq(authMethodTable.userId, userTable.id));
+
+  let userData: typeof userTable.$inferSelect;
+  let isNewUser = false;
+  let accessToken: string | undefined;
+  let refreshToken: string | undefined;
+
+  if (existingAuth.length > 0) {
+    userData = existingAuth[0].user;
+    isNewUser = false;
+
+    const tokenPayload = {
+      userId: userData.id,
+      lastLogin: new Date(),
+    };
+
+    ({ accessToken, refreshToken } = generateTokenPair(tokenPayload));
+    
+    return {
+      isNewUser,
+      userId: userData.id,
+      accessToken: accessToken!,
+      refreshToken: refreshToken!,
+    };
+  } else {
+    if (!inviteCode || inviteCode.trim() === '') {
+      throw new ApiError(
+        'Invite code is required for new user registration',
+        httpStatus.BAD_REQUEST,
+      );
+    }
+
+    userData = await handleNewOauthUser(credentialPayload, oidcToken);
+    isNewUser = true;
+  }
+
+  const tokenPayload = {
+    userId: userData.id,
+    lastLogin: new Date(),
+  };
+
+  ({ accessToken, refreshToken } = generateTokenPair(tokenPayload));
+
+  return {
+    isNewUser,
+    userId: userData.id,
+    accessToken: accessToken!,
+    refreshToken: refreshToken!,
+  };
+};
+
+export const handleRefreshToken = (
+  refreshTokenValue: string,
+): RefreshTokenResponse => {
+  const tokenData = validateRefreshToken(refreshTokenValue);
+
+  if (!tokenData) {
+    throw new ApiError(
+      'Invalid or expired refresh token',
+      httpStatus.UNAUTHORIZED,
+    );
+  }
+
+  const tokenPayload = {
+    userId: tokenData.userId,
+    lastLogin: new Date(),
+  };
+
+  const { accessToken, refreshToken } = generateTokenPair(tokenPayload);
+
+  return {
+    accessToken,
+    refreshToken,
+  };
+};
