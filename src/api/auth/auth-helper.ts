@@ -99,30 +99,38 @@ export const handleNewOauthUser = async (
 ): Promise<typeof userTable.$inferSelect> => {
   const newUserId = uuidv4();
 
-  const userData = await db.transaction(async (tx) => {
-    const [newUser] = await tx
-      .insert(userTable)
-      .values({
-        id: newUserId,
-        updatedAt: new Date().toISOString(),
-        email: credentialPayload.email || null,
-        displayName: credentialPayload.name || newUserId,
-        avatarUrl: credentialPayload.picture || null,
-        username: uniqueUsernameGenerator(usernameGeneratorConfig),
-      })
-      .returning();
+  try {
+    const userData = await db.transaction(async (tx) => {
+      const [newUser] = await tx
+        .insert(userTable)
+        .values({
+          id: newUserId,
+          updatedAt: new Date().toISOString(),
+          email: credentialPayload.email || null,
+          displayName: credentialPayload.name || newUserId,
+          avatarUrl: credentialPayload.picture || null,
+          username: uniqueUsernameGenerator(usernameGeneratorConfig),
+        })
+        .returning();
 
-    await tx.insert(authMethodTable).values({
-      id: uuidv4(),
-      updatedAt: new Date().toISOString(),
-      userId: newUserId,
-      googleSub: credentialPayload.sub,
-      googleEmail: credentialPayload.email || null,
-      provider: 'GOOGLE_OAUTH',
+      await tx.insert(authMethodTable).values({
+        id: uuidv4(),
+        updatedAt: new Date().toISOString(),
+        userId: newUserId,
+        googleSub: credentialPayload.sub,
+        googleEmail: credentialPayload.email || null,
+        provider: 'GOOGLE_OAUTH',
+      });
+
+      return newUser;
     });
 
-    return newUser;
-  });
-
-  return userData;
+    return userData;
+  } catch (error) {
+    logger.error('Transaction error in handleNewOauthUser:', error);
+    throw new ApiError(
+      'Database transaction failed while creating user',
+      httpStatus.INTERNAL_SERVER_ERROR,
+    );
+  }
 };

@@ -13,15 +13,26 @@ export async function getDrizzleClient() {
     try {
       pool = new Pool({
         connectionString: env.DATABASE_URL,
+        max: 20, // Maximum number of clients in the pool
+        idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+        connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection could not be established
+        allowExitOnIdle: false, // Keep pool alive even if all clients are idle
       });
 
-      await pool.connect();
+      // Handle pool errors
+      pool.on('error', (err) => {
+        logger.error('Unexpected database pool error:', err);
+      });
+
+      // Test the connection
+      const client = await pool.connect();
+      client.release(); // Important: release the client back to the pool
 
       db = drizzle({ client: pool, schema: { ...schema, ...relations } });
 
       logger.info('🛡️  Database connection established successfully  🛡️');
     } catch (error) {
-      console.error('‼️    Failed to initialize database connection:', error);
+      logger.error('‼️    Failed to initialize database connection:', error);
       throw error;
     }
   }

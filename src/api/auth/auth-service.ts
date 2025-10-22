@@ -7,6 +7,7 @@ import {
 import { eq } from 'drizzle-orm';
 import ApiError from '../../utils/apiError';
 import httpStatus from 'http-status';
+import logger from '../../loaders/logger';
 import {
   handleNewOauthUser,
   verifyGoogleCredentials,
@@ -21,53 +22,49 @@ export const handleGoogleOauth = async (data: {
   isVerify: boolean;
   code: string;
   credential: string;
-  inviteCode?: string;
 }): Promise<GoogleAuthResponse> => {
-  const { isVerify, code, credential, inviteCode } = data;
+  const { isVerify, code, credential } = data;
 
   const { credentialPayload, oidcToken } = await verifyGoogleCredentials(
     code,
     credential,
   );
 
-  const existingAuth = await db
-    .select()
-    .from(authMethodTable)
-    .where(eq(authMethodTable.googleSub, credentialPayload.sub))
-    .innerJoin(userTable, eq(authMethodTable.userId, userTable.id));
+  let existingAuth;
+  
+  try {
+    existingAuth = await db
+      .select()
+      .from(authMethodTable)
+      .where(eq(authMethodTable.googleSub, credentialPayload.sub))
+      .innerJoin(userTable, eq(authMethodTable.userId, userTable.id));
+  } catch (error) {
+    logger.error('Database query error in handleGoogleOauth:', error);
+    throw new ApiError(
+      'Database connection error. Please try again later.',
+      httpStatus.SERVICE_UNAVAILABLE,
+    );
+  }
 
   let userData: typeof userTable.$inferSelect;
   let isNewUser = false;
-  let accessToken: string | undefined;
-  let refreshToken: string | undefined;
 
   if (existingAuth.length > 0) {
+    // Existing user - login
     userData = existingAuth[0].user;
     isNewUser = false;
-
-    const tokenPayload = {
-      userId: userData.id,
-      lastLogin: new Date(),
-    };
-
-    ({ accessToken, refreshToken } = generateTokenPair(tokenPayload));
-    
-    return {
-      isNewUser,
-      userId: userData.id,
-      accessToken: accessToken!,
-      refreshToken: refreshToken!,
-    };
   } else {
-    if (!inviteCode || inviteCode.trim() === '') {
+    // New user - register
+    try {
+      userData = await handleNewOauthUser(credentialPayload, oidcToken);
+      isNewUser = true;
+    } catch (error) {
+      logger.error('Database error creating new user:', error);
       throw new ApiError(
-        'Invite code is required for new user registration',
-        httpStatus.BAD_REQUEST,
+        'Failed to create user account. Please try again later.',
+        httpStatus.SERVICE_UNAVAILABLE,
       );
     }
-
-    userData = await handleNewOauthUser(credentialPayload, oidcToken);
-    isNewUser = true;
   }
 
   const tokenPayload = {
@@ -75,7 +72,7 @@ export const handleGoogleOauth = async (data: {
     lastLogin: new Date(),
   };
 
-  ({ accessToken, refreshToken } = generateTokenPair(tokenPayload));
+  const { accessToken, refreshToken } = generateTokenPair(tokenPayload);
 
   return {
     isNewUser,
