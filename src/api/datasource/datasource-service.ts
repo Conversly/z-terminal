@@ -5,8 +5,9 @@ import { db } from '../../loaders/postgres';
 import {
   chatBots as chatBotsTable,
   dataSources as dataSourcesTable,
+  embeddings as embeddingsTable,
 } from '../../drizzle/schema';
-import { DocumentData, QAPair, DatasourceResponse } from './types';
+import { DocumentData, QAPair, DatasourceResponse, DeleteKnowledgeResponse, FetchDataSourcesResponse } from './types';
 import { eq, and } from 'drizzle-orm';
 export const handleProcessDatasource = async (
   userId: string,
@@ -121,5 +122,139 @@ export const handleProcessDatasource = async (
   } catch (error) {
     logger.error('Error processing datasources:', error);
     throw new ApiError('Error processing datasources', httpStatus.INTERNAL_SERVER_ERROR);
+  }
+};
+
+export const handleDeleteKnowledge = async (
+  userId: string,
+  chatbotId: number,
+  datasourceId: number
+): Promise<DeleteKnowledgeResponse> => {
+  try {
+    // First, verify the chatbot exists and belongs to the user
+    const chatbot = await db
+      .select()
+      .from(chatBotsTable)
+      .where(
+        and(
+          eq(chatBotsTable.id, chatbotId),
+          eq(chatBotsTable.userId, userId)
+        )
+      )
+      .limit(1)
+      .then((res) => res[0]);
+
+    if (!chatbot) {
+      throw new ApiError(
+        'Chatbot not found or does not belong to user',
+        httpStatus.NOT_FOUND
+      );
+    }
+
+    // Verify the datasource exists and belongs to this chatbot
+    const datasource = await db
+      .select()
+      .from(dataSourcesTable)
+      .where(
+        and(
+          eq(dataSourcesTable.id, datasourceId),
+          eq(dataSourcesTable.chatbotId, chatbotId)
+        )
+      )
+      .limit(1)
+      .then((res) => res[0]);
+
+    if (!datasource) {
+      throw new ApiError(
+        'Datasource not found or does not belong to this chatbot',
+        httpStatus.NOT_FOUND
+      );
+    }
+
+    // Delete embeddings first (they reference the datasource)
+    await db
+      .delete(embeddingsTable)
+      .where(
+        and(
+          eq(embeddingsTable.chatbotId, chatbotId),
+          eq(embeddingsTable.dataSourceId, datasourceId)
+        )
+      );
+
+    // Then delete the datasource
+    await db
+      .delete(dataSourcesTable)
+      .where(
+        and(
+          eq(dataSourcesTable.id, datasourceId),
+          eq(dataSourcesTable.chatbotId, chatbotId)
+        )
+      );
+
+    logger.info(`Successfully deleted datasource ${datasourceId} for chatbot ${chatbotId}`);
+
+    return {
+      success: true,
+      message: 'Knowledge deleted successfully',
+    };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    logger.error('Error deleting knowledge:', error);
+    throw new ApiError('Error deleting knowledge', httpStatus.INTERNAL_SERVER_ERROR);
+  }
+};
+
+export const handleFetchDataSources = async (
+  userId: string,
+  chatbotId: number
+): Promise<FetchDataSourcesResponse> => {
+  try {
+    // First, verify the chatbot exists and belongs to the user
+    const chatbot = await db
+      .select()
+      .from(chatBotsTable)
+      .where(
+        and(
+          eq(chatBotsTable.id, chatbotId),
+          eq(chatBotsTable.userId, userId)
+        )
+      )
+      .limit(1)
+      .then((res) => res[0]);
+
+    if (!chatbot) {
+      throw new ApiError(
+        'Chatbot not found or does not belong to user',
+        httpStatus.NOT_FOUND
+      );
+    }
+
+    // Fetch all datasources for this chatbot
+    const dataSources = await db
+      .select({
+        id: dataSourcesTable.id,
+        type: dataSourcesTable.type,
+        name: dataSourcesTable.name,
+        sourceDetails: dataSourcesTable.sourceDetails,
+        createdAt: dataSourcesTable.createdAt,
+        citation: dataSourcesTable.citation,
+      })
+      .from(dataSourcesTable)
+      .where(eq(dataSourcesTable.chatbotId, chatbotId));
+
+    logger.info(`Fetched ${dataSources.length} datasources for chatbot ${chatbotId}`);
+
+    return {
+      success: true,
+      data: dataSources,
+    };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    logger.error('Error fetching data sources:', error);
+    throw new ApiError('Error fetching data sources', httpStatus.INTERNAL_SERVER_ERROR);
   }
 };

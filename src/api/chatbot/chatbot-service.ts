@@ -5,7 +5,7 @@ import { db } from '../../loaders/postgres';
 import {
   chatBots as chatBotsTable,
 } from '../../drizzle/schema';
-import { CreateChatbotInput, ChatbotResponse, GenerateInstructionsInput, InstructionResponse} from './types';
+import { CreateChatbotInput, ChatbotResponse, GenerateInstructionsInput, InstructionResponse, GetChatbotsResponse, DeleteChatbotInput, DeleteChatbotResponse} from './types';
 import axios from 'axios';
 import env from '../../config';
 import { eq } from 'drizzle-orm';
@@ -158,5 +158,63 @@ export const handleUpdateInstruction = async (
       throw error;
     }
     throw new ApiError('Error updating instructions', httpStatus.INTERNAL_SERVER_ERROR);
+  }
+};
+
+export const handleGetChatbots = async (
+  userId: string
+): Promise<GetChatbotsResponse[]> => {
+  try {
+    // Get all chatbots associated with the user
+    const chatbots = await db
+      .select({
+        id: chatBotsTable.id,
+        name: chatBotsTable.name,
+        description: chatBotsTable.description,
+        createdAt: chatBotsTable.createdAt,
+        userId: chatBotsTable.userId,
+      })
+      .from(chatBotsTable)
+      .where(eq(chatBotsTable.userId, userId));
+
+    return chatbots;
+  } catch (error) {
+    logger.error('Error fetching chatbots:', error);
+    throw new ApiError('Error fetching chatbots', httpStatus.INTERNAL_SERVER_ERROR);
+  }
+};
+
+export const handleDeleteChatbot = async (
+  userId: string,
+  input: DeleteChatbotInput
+): Promise<DeleteChatbotResponse> => {
+  try {
+    // First, verify that the chatbot belongs to the user
+    const [chatbot] = await db
+      .select()
+      .from(chatBotsTable)
+      .where(eq(chatBotsTable.id, input.id));
+
+    if (!chatbot) {
+      throw new ApiError('Chatbot not found', httpStatus.NOT_FOUND);
+    }
+
+    if (chatbot.userId !== userId) {
+      throw new ApiError('Unauthorized: You do not have permission to delete this chatbot', httpStatus.FORBIDDEN);
+    }
+    await db
+      .delete(chatBotsTable)
+      .where(eq(chatBotsTable.id, input.id));
+
+    return { 
+      success: true,
+      message: 'Chatbot deleted successfully'
+    };
+  } catch (error) {
+    logger.error('Error deleting chatbot:', error);
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError('Error deleting chatbot', httpStatus.INTERNAL_SERVER_ERROR);
   }
 };

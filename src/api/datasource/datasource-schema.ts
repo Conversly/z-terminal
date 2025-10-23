@@ -23,3 +23,20 @@ export const processRequestSchema = yup.object().shape({
   documents: yup.array().of(documentSchema).optional(),
   textContent: yup.array().of(yup.string().required()).optional(),
 });
+
+export const deleteKnowledgeSchema = yup.object().shape({
+  chatbotId: yup.number()
+    .integer('Chatbot ID must be an integer')
+    .positive('Chatbot ID must be positive')
+    .required('Chatbot ID is required'),
+  datasourceId: yup.number()
+    .integer('Datasource ID must be an integer')
+    .positive('Datasource ID must be positive')
+    .required('Datasource ID is required'),
+});
+
+export const fetchDataSourcesSchema = yup.object().shape({
+  chatbotId: yup.string()
+    .matches(/^\d+$/, 'Chatbot ID must be a valid number')
+    .required('Chatbot ID is required'),
+});

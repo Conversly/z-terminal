@@ -15,3 +15,10 @@ export const chatbotInstructionsSchema = yup.object().shape({
   chatbotId: yup.string().required('Chatbot ID is required'),
   systemPrompt: yup.string().required('System prompt is required').min(1, 'System prompt must not be empty'),
 });
+
+export const deleteChatbotSchema = yup.object().shape({
+  id: yup.number()
+    .required('Chatbot ID is required')
+    .positive('Chatbot ID must be a positive number')
+    .integer('Chatbot ID must be an integer'),
+});

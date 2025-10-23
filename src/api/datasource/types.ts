@@ -27,3 +27,22 @@ export interface DatasourceResponse {
   insertedCount: number;
   datasourceIds: number[];
 }
+
+export interface DeleteKnowledgeResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface DataSourceItem {
+  id: number;
+  type: string;
+  name: string;
+  sourceDetails: any;
+  createdAt: Date | null;
+  citation: string | null;
+}
+
+export interface FetchDataSourcesResponse {
+  success: boolean;
+  data: DataSourceItem[];
+}
