@@ -40,3 +40,25 @@ export const fetchDataSourcesSchema = yup.object().shape({
     .matches(/^\d+$/, 'Chatbot ID must be a valid number')
     .required('Chatbot ID is required'),
 });
+
+export const addCitationSchema = yup.object().shape({
+  chatbotId: yup.number()
+    .integer('Chatbot ID must be an integer')
+    .positive('Chatbot ID must be positive')
+    .required('Chatbot ID is required'),
+  dataSourceId: yup.number()
+    .integer('Data source ID must be an integer')
+    .positive('Data source ID must be positive')
+    .required('Data source ID is required'),
+  citation: yup.string()
+    .trim()
+    .min(1, 'Citation cannot be empty')
+    .max(1000, 'Citation must be less than 1000 characters')
+    .required('Citation is required'),
+});
+
+export const fetchEmbeddingsSchema = yup.object().shape({
+  dataSourceId: yup.string()
+    .matches(/^\d+$/, 'Data source ID must be a valid number')
+    .required('Data source ID is required'),
+});

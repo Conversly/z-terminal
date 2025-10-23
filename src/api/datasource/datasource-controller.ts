@@ -6,6 +6,8 @@ import {
     handleProcessDatasource,
     handleDeleteKnowledge,
     handleFetchDataSources,
+    handleAddCitation,
+    handleFetchEmbeddings,
 } from './datasource-service';
 
 export const processDatasource = catchAsync(
@@ -59,6 +61,48 @@ export const fetchDataSources = catchAsync(
     const result = await handleFetchDataSources(
       req.user.userId as string,
       chatbotId
+    );
+
+    res.status(httpStatus.OK).json({
+      success: result.success,
+      data: result.data,
+    });
+  }
+);
+
+export const addCitation = catchAsync(
+  async (req: jwtReq, res: Response, next: NextFunction) => {
+    const { chatbotId, dataSourceId, citation } = req.body;
+
+    const result = await handleAddCitation(
+      req.user.userId as string,
+      chatbotId,
+      dataSourceId,
+      citation
+    );
+
+    res.status(httpStatus.OK).json({
+      success: result.success,
+      message: result.message,
+      data: result.data,
+    });
+  }
+);
+
+export const fetchEmbeddings = catchAsync(
+  async (req: jwtReq, res: Response, next: NextFunction) => {
+    const dataSourceId = parseInt(req.params.dataSourceId);
+
+    if (isNaN(dataSourceId)) {
+      return res.status(httpStatus.BAD_REQUEST).json({
+        success: false,
+        message: 'Invalid data source ID',
+      });
+    }
+
+    const result = await handleFetchEmbeddings(
+      req.user.userId as string,
+      dataSourceId
     );
 
     res.status(httpStatus.OK).json({

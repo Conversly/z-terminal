@@ -7,7 +7,7 @@ import {
   dataSources as dataSourcesTable,
   embeddings as embeddingsTable,
 } from '../../drizzle/schema';
-import { DocumentData, QAPair, DatasourceResponse, DeleteKnowledgeResponse, FetchDataSourcesResponse } from './types';
+import { DocumentData, QAPair, DatasourceResponse, DeleteKnowledgeResponse, FetchDataSourcesResponse, AddCitationResponse, FetchEmbeddingsResponse } from './types';
 import { eq, and } from 'drizzle-orm';
 export const handleProcessDatasource = async (
   userId: string,
@@ -256,5 +256,175 @@ export const handleFetchDataSources = async (
     }
     logger.error('Error fetching data sources:', error);
     throw new ApiError('Error fetching data sources', httpStatus.INTERNAL_SERVER_ERROR);
+  }
+};
+
+export const handleAddCitation = async (
+  userId: string,
+  chatbotId: number,
+  dataSourceId: number,
+  citation: string
+): Promise<AddCitationResponse> => {
+  try {
+    // Step 1: Verify the chatbot exists and belongs to the user
+    const chatbot = await db
+      .select()
+      .from(chatBotsTable)
+      .where(
+        and(
+          eq(chatBotsTable.id, chatbotId),
+          eq(chatBotsTable.userId, userId)
+        )
+      )
+      .limit(1)
+      .then((res) => res[0]);
+
+    if (!chatbot) {
+      throw new ApiError(
+        'Chatbot not found or does not belong to user',
+        httpStatus.NOT_FOUND
+      );
+    }
+
+    // Step 2: Verify the datasource exists and belongs to this chatbot
+    const dataSource = await db
+      .select()
+      .from(dataSourcesTable)
+      .where(
+        and(
+          eq(dataSourcesTable.id, dataSourceId),
+          eq(dataSourcesTable.chatbotId, chatbotId)
+        )
+      )
+      .limit(1)
+      .then((res) => res[0]);
+
+    if (!dataSource) {
+      throw new ApiError(
+        'Data source not found or does not belong to this chatbot',
+        httpStatus.NOT_FOUND
+      );
+    }
+
+    // Step 3: Update the citation in a transaction
+    let updatedEmbeddingsCount = 0;
+
+    await db.transaction(async (tx) => {
+      // Update the citation field in DataSource
+      await tx
+        .update(dataSourcesTable)
+        .set({ 
+          citation,
+          updatedAt: new Date()
+        })
+        .where(eq(dataSourcesTable.id, dataSourceId));
+
+      // Update the citation field in all related embeddings
+      const result = await tx
+        .update(embeddingsTable)
+        .set({ 
+          citation,
+          updatedAt: new Date()
+        })
+        .where(
+          and(
+            eq(embeddingsTable.dataSourceId, dataSourceId),
+            eq(embeddingsTable.chatbotId, chatbotId)
+          )
+        )
+        .returning({ id: embeddingsTable.id });
+
+      updatedEmbeddingsCount = result.length;
+    });
+
+    logger.info(
+      `Successfully added citation to datasource ${dataSourceId} and updated ${updatedEmbeddingsCount} embeddings`
+    );
+
+    return {
+      success: true,
+      message: 'Citation added successfully',
+      data: {
+        id: dataSourceId,
+        citation,
+        updatedEmbeddingsCount,
+      },
+    };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    logger.error('Error adding citation:', error);
+    throw new ApiError('Error adding citation', httpStatus.INTERNAL_SERVER_ERROR);
+  }
+};
+
+export const handleFetchEmbeddings = async (
+  userId: string,
+  dataSourceId: number
+): Promise<FetchEmbeddingsResponse> => {
+  try {
+    // Step 1: Verify the datasource exists
+    const dataSource = await db
+      .select({
+        id: dataSourcesTable.id,
+        chatbotId: dataSourcesTable.chatbotId,
+      })
+      .from(dataSourcesTable)
+      .where(eq(dataSourcesTable.id, dataSourceId))
+      .limit(1)
+      .then((res) => res[0]);
+
+    if (!dataSource) {
+      throw new ApiError('Data source not found', httpStatus.NOT_FOUND);
+    }
+
+    // Step 2: Verify the chatbot belongs to the user
+    const chatbot = await db
+      .select()
+      .from(chatBotsTable)
+      .where(
+        and(
+          eq(chatBotsTable.id, dataSource.chatbotId),
+          eq(chatBotsTable.userId, userId)
+        )
+      )
+      .limit(1)
+      .then((res) => res[0]);
+
+    if (!chatbot) {
+      throw new ApiError(
+        'Data source does not belong to a chatbot owned by user',
+        httpStatus.FORBIDDEN
+      );
+    }
+
+    // Step 3: Fetch embeddings for this datasource
+    const embeddings = await db
+      .select({
+        id: embeddingsTable.id,
+        text: embeddingsTable.text,
+        topic: embeddingsTable.topic,
+      })
+      .from(embeddingsTable)
+      .where(
+        and(
+          eq(embeddingsTable.dataSourceId, dataSourceId),
+          eq(embeddingsTable.chatbotId, dataSource.chatbotId)
+        )
+      );
+
+    logger.info(`Fetched ${embeddings.length} embeddings for datasource ${dataSourceId}`);
+
+    return {
+      success: true,
+      data: embeddings,
+    };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    logger.error('Error fetching embeddings:', error);
+    throw new ApiError('Error fetching embeddings', httpStatus.INTERNAL_SERVER_ERROR);
   }
 };

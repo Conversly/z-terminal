@@ -46,3 +46,30 @@ export interface FetchDataSourcesResponse {
   success: boolean;
   data: DataSourceItem[];
 }
+
+export interface AddCitationRequest {
+  chatbotId: number;
+  dataSourceId: number;
+  citation: string;
+}
+
+export interface AddCitationResponse {
+  success: boolean;
+  message: string;
+  data: {
+    id: number;
+    citation: string;
+    updatedEmbeddingsCount: number;
+  };
+}
+
+export interface EmbeddingItem {
+  id: number;
+  text: string;
+  topic: string;
+}
+
+export interface FetchEmbeddingsResponse {
+  success: boolean;
+  data: EmbeddingItem[];
+}
