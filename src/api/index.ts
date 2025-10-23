@@ -1,10 +1,15 @@
 import userRouter from './user/user-router';
 import authRouter from './auth/auth-router';
 import { Router } from 'express';
+import chatbotRouter from './chatbot/chatbot-router';
+import datasourceRouter from './datasource/datasource-router';
+
 
 const routes = [
   { path: '/auth', router: authRouter },
   { path: '/user', router: userRouter },
+  { path: '/chatbot', router: chatbotRouter },
+  { path: '/datasource', router: datasourceRouter },
 ];
 
 export default (): Router => {

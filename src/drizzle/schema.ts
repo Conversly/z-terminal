@@ -23,6 +23,7 @@ export const dataSourceType = pgEnum('DataSourceType', [
   'MD',
   'CSV',
   'QNA',
+  'DOCUMENT',
 ]);
 
 

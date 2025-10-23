@@ -7,6 +7,11 @@ export const createChatbotSchema = yup.object().shape({
 });
 
 
-export const getInstructionsSchema = yup.object().shape({
+export const generateInstructionSchema = yup.object().shape({
   topic: yup.string().required('Topic is required').min(1, 'Topic must not be empty'),
+});
+
+export const chatbotInstructionsSchema = yup.object().shape({
+  chatbotId: yup.string().required('Chatbot ID is required'),
+  systemPrompt: yup.string().required('System prompt is required').min(1, 'System prompt must not be empty'),
 });

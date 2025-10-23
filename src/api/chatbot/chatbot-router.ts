@@ -2,17 +2,21 @@ import express from 'express';
 import { auth, validate } from '../../shared/middleware';
 import {
   createChatbot,
-    GetInstructions,
+    GenerateInstruction,
+    updateInstruction,
 } from './chatbot-controller';
 import {
   createChatbotSchema,
-  getInstructionsSchema,
+  generateInstructionSchema,
+  chatbotInstructionsSchema,
 } from './chatbot-schema';
 
 const app = express.Router();
 
 app.post('/create', auth, validate('body', createChatbotSchema), createChatbot);
 
-app.post('/instructions', auth, validate('body', getInstructionsSchema), GetInstructions);
+app.get('/generate-prompt', auth, validate('query', generateInstructionSchema), GenerateInstruction);
+
+app.post('/prompt', auth, validate('body', chatbotInstructionsSchema), updateInstruction);
 
 export default app;

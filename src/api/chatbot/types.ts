@@ -15,10 +15,11 @@ export interface ChatbotResponse {
   apiKey: string | null;
 }
 
-export interface GetInstructionsInput {
+export interface GenerateInstructionsInput {
   topic: string;
 }
 
-export interface GetInstructionsResponse {
-  prompt: string;
+export interface InstructionResponse {
+  chatbotId: string;
+  systemPrompt: string;
 }

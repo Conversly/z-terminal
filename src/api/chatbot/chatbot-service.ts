@@ -5,9 +5,10 @@ import { db } from '../../loaders/postgres';
 import {
   chatBots as chatBotsTable,
 } from '../../drizzle/schema';
-import { CreateChatbotInput, ChatbotResponse, GetInstructionsInput, GetInstructionsResponse } from './types';
+import { CreateChatbotInput, ChatbotResponse, GenerateInstructionsInput, InstructionResponse} from './types';
 import axios from 'axios';
 import env from '../../config';
+import { eq } from 'drizzle-orm';
 
 export const handleCreateChatbot = async (
   userId: string,
@@ -32,9 +33,9 @@ export const handleCreateChatbot = async (
   }
 };
 
-export const handleGetInstructions = async (
-  input: GetInstructionsInput
-): Promise<GetInstructionsResponse> => {
+export const handleGenerateInstruction = async (
+  input: GenerateInstructionsInput
+): Promise<InstructionResponse> => {
   try {
     const systemPrompt = `
         You are an AI assistant that helps users craft effective prompts for their AI chatbot, designed for customer support, website documentation assistance, technical support, and more. Your goal is to refine and enhance their input by making it clear, structured, and optimized for high-quality responses.
@@ -113,7 +114,8 @@ export const handleGetInstructions = async (
     }
 
     return {
-      prompt: generatedPrompt
+      chatbotId : '',  // Placeholder, as chatbotId is not generated yet 
+      systemPrompt: generatedPrompt
     };
   } catch (error) {
     logger.error('Error getting instructions from Gemini:', error);
@@ -128,3 +130,33 @@ export const handleGetInstructions = async (
 };
 
 
+export const handleUpdateInstruction = async (
+  systemPrompt: string,
+  chatbotId: string,
+): Promise<InstructionResponse> => {
+  try {
+    const [updatedChatbot] = await db
+      .update(chatBotsTable)
+      .set({
+        systemPrompt: systemPrompt,
+        updatedAt: new Date(),
+      })
+      .where(eq(chatBotsTable.id, parseInt(chatbotId)))
+      .returning();
+
+    if (!updatedChatbot) {
+      throw new ApiError('Chatbot not found', httpStatus.NOT_FOUND);
+    }
+
+    return {
+      chatbotId: chatbotId,
+      systemPrompt: updatedChatbot.systemPrompt,
+    };
+  } catch (error) {
+    logger.error('Error updating instructions:', error);
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError('Error updating instructions', httpStatus.INTERNAL_SERVER_ERROR);
+  }
+};

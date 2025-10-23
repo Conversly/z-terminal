@@ -4,9 +4,10 @@ import { Request, Response, NextFunction } from 'express';
 import { jwtReq } from '../../types';
 import {
   handleCreateChatbot,
-  handleGetInstructions,
+  handleGenerateInstruction,
+  handleUpdateInstruction,
 } from './chatbot-service';
-import { CreateChatbotInput, GetInstructionsInput } from './types';
+import { CreateChatbotInput, GenerateInstructionsInput } from './types';
 
 export const createChatbot = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
@@ -26,17 +27,32 @@ export const createChatbot = catchAsync(
   }
 );
 
-export const GetInstructions = catchAsync(
+export const GenerateInstruction = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const input: GetInstructionsInput = {
-      topic: req.body.topic,
+    const input: GenerateInstructionsInput = {
+      topic: req.query.topic as string,
     };
 
-    const result = await handleGetInstructions(input);
+    const result = await handleGenerateInstruction(input);
 
     res.status(httpStatus.OK).json({
       success: true,
       message: 'Instructions generated successfully',
+      data: result,
+    });
+  }
+);
+
+export const updateInstruction = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+      const systemPrompt = req.body.systemPrompt as string;
+      const chatbotId = req.body.chatbotId as string;
+
+    const result = await handleUpdateInstruction(systemPrompt, chatbotId);
+
+    res.status(httpStatus.OK).json({
+      success: true,
+      message: 'Instructions updated successfully',
       data: result,
     });
   }
