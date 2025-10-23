@@ -21,6 +21,7 @@ const envSchema = yup.object().shape({
   GOOGLE_CLIENT_ID: yup.string().required(),
   GOOGLE_CLIENT_SECRET: yup.string().required(),
   GOOGLE_REDIRECT_URI: yup.string().required(),
+  GEMINI_API_KEY: yup.string().required(),
 });
 
 // Load and parse the environment variables

@@ -4,7 +4,7 @@ import {
   authMethod as authMethodTable,
   user as userTable,
 } from '../../drizzle/schema';
-import { eq } from 'drizzle-orm';
+import { eq, is } from 'drizzle-orm';
 import ApiError from '../../utils/apiError';
 import httpStatus from 'http-status';
 import logger from '../../loaders/logger';
@@ -73,6 +73,13 @@ export const handleGoogleOauth = async (data: {
   };
 
   const { accessToken, refreshToken } = generateTokenPair(tokenPayload);
+
+  logger.info(
+    'User logged in:',
+    userData.id,
+    accessToken,
+    refreshToken
+  );
 
   return {
     isNewUser,

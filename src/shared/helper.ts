@@ -24,12 +24,13 @@ export const jwtCookieOptions = (origin: string, isRefreshToken: boolean) => {
     } as CookieOptions;
   }
 
+  // Development mode - no domain for localhost compatibility
   return {
     httpOnly: true,
     secure: true,
     sameSite: 'none',
     path: '/',
-    domain: '.tr3nchex.dev',
+    // domain is omitted in dev mode to work with localhost
     maxAge: isRefreshToken
       ? JWT_TOKEN_MAX_AGE.REFRESH_TOKEN
       : JWT_TOKEN_MAX_AGE.ACCESS_TOKEN,
