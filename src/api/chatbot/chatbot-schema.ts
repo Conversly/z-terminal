@@ -22,3 +22,10 @@ export const deleteChatbotSchema = yup.object().shape({
     .positive('Chatbot ID must be a positive number')
     .integer('Chatbot ID must be an integer'),
 });
+
+export const getChatbotSchema = yup.object().shape({
+  id: yup.number()
+    .required('Chatbot ID is required')
+    .positive('Chatbot ID must be a positive number')
+    .integer('Chatbot ID must be an integer'),
+});

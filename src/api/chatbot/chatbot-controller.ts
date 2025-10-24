@@ -8,6 +8,7 @@ import {
   handleUpdateInstruction,
   handleGetChatbots,
   handleDeleteChatbot,
+  handleGetChatbot,
 } from './chatbot-service';
 import { CreateChatbotInput, GenerateInstructionsInput, DeleteChatbotInput } from './types';
 
@@ -83,6 +84,18 @@ export const deleteChatbot = catchAsync(
     res.status(httpStatus.OK).json({
       success: true,
       message: result.message,
+      data: result,
+    });
+  }
+);
+
+export const getChatbot = catchAsync(
+  async (req: jwtReq, res: Response, next: NextFunction) => {
+
+    const result = await handleGetChatbot(parseInt(req.params.id));
+
+    res.status(httpStatus.OK).json({
+      success: true,
       data: result,
     });
   }

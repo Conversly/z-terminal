@@ -184,6 +184,35 @@ export const handleGetChatbots = async (
   }
 };
 
+
+
+export const handleGetChatbot = async (
+  chatbotId: number
+): Promise<ChatbotResponse | null> => {
+  try {
+    const chatbot = await db
+      .select({
+        id: chatBotsTable.id,
+        name: chatBotsTable.name,
+        description: chatBotsTable.description,
+        systemPrompt: chatBotsTable.systemPrompt,
+        createdAt: chatBotsTable.createdAt,
+        updatedAt: chatBotsTable.updatedAt,
+        userId: chatBotsTable.userId,
+      })
+      .from(chatBotsTable)
+      .where(eq(chatBotsTable.id, chatbotId))
+      .limit(1)
+      .then((res) => res[0]);
+
+    return chatbot;
+  } catch (error) {
+    logger.error('Error fetching chatbot:', error);
+    throw new ApiError('Error fetching chatbot', httpStatus.INTERNAL_SERVER_ERROR);
+  }
+};
+
+
 export const handleDeleteChatbot = async (
   userId: string,
   input: DeleteChatbotInput

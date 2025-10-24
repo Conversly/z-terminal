@@ -12,7 +12,7 @@ export interface ChatbotResponse {
   systemPrompt: string;
   createdAt: Date | null;
   updatedAt: Date | null;
-  apiKey: string | null;
+  apiKey?: string | null;
 }
 
 export interface GenerateInstructionsInput {

@@ -6,13 +6,16 @@ import {
     updateInstruction,
     getChatbots,
     deleteChatbot,
+    getChatbot,
 } from './chatbot-controller';
 import {
   createChatbotSchema,
   generateInstructionSchema,
   chatbotInstructionsSchema,
   deleteChatbotSchema,
+  getChatbotSchema,
 } from './chatbot-schema';
+import { get } from 'http';
 
 const app = express.Router();
 
@@ -25,5 +28,7 @@ app.get('/generate-prompt', auth, validate('query', generateInstructionSchema), 
 app.post('/prompt', auth, validate('body', chatbotInstructionsSchema), updateInstruction);
 
 app.delete('/:id', auth, validate('params', deleteChatbotSchema), deleteChatbot);
+
+app.get('/:id', auth, validate('params', getChatbotSchema), getChatbot);
 
 export default app;

@@ -6,13 +6,16 @@ import {
   user as userTable,
 } from '../../drizzle/schema';
 import { eq } from 'drizzle-orm';
+import { userResponse } from './types';
 
-export const handleGetUser = async (userId: string): Promise<any> => {
+export const handleGetUser = async (userId: string): Promise<userResponse> => {
   const [user] = await db
     .select({
       id: userTable.id,
       displayName: userTable.displayName,
       username: userTable.username,
+      avatarUrl: userTable.avatarUrl,
+      createdAt: userTable.createdAt,
     })
     .from(userTable)
     .where(eq(userTable.id, userId))
@@ -25,5 +28,14 @@ export const handleGetUser = async (userId: string): Promise<any> => {
       httpStatus.NOT_FOUND
     );
   }
-  return user;
+
+  const userData: userResponse = {
+    id: user.id,
+    displayName: user.displayName,
+    username: user.username,
+    avatarUrl: user.avatarUrl,
+    createdAt: new Date(user.createdAt),
+  };
+
+  return userData;
 };
