@@ -4,6 +4,7 @@ import { Router } from 'express';
 import chatbotRouter from './chatbot/chatbot-router';
 import datasourceRouter from './datasource/datasource-router';
 import analyticsRouter from './analytics/analytics-router';
+import deployRouter from './deploy/deploy-router';
 
 
 const routes = [
@@ -12,6 +13,7 @@ const routes = [
   { path: '/chatbot', router: chatbotRouter },
   { path: '/datasource', router: datasourceRouter },
   { path: '/analytics', router: analyticsRouter },
+  { path: '/deploy', router: deployRouter },
 ];
 
 export default (): Router => {

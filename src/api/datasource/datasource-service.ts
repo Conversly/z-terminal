@@ -212,7 +212,6 @@ export const handleFetchDataSources = async (
   chatbotId: number
 ): Promise<FetchDataSourcesResponse> => {
   try {
-    // First, verify the chatbot exists and belongs to the user
     const chatbot = await db
       .select()
       .from(chatBotsTable)
@@ -232,7 +231,6 @@ export const handleFetchDataSources = async (
       );
     }
 
-    // Fetch all datasources for this chatbot
     const dataSources = await db
       .select({
         id: dataSourcesTable.id,

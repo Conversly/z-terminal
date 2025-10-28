@@ -1,4 +1,3 @@
-
 import * as yup from 'yup';
 
 const qaPairSchema = yup.object().shape({
@@ -61,4 +60,51 @@ export const fetchEmbeddingsSchema = yup.object().shape({
   dataSourceId: yup.string()
     .matches(/^\d+$/, 'Data source ID must be a valid number')
     .required('Data source ID is required'),
+});
+
+// Schema for ingestion service request
+const websiteUrlWithIdSchema = yup.object().shape({
+  datasourceId: yup.number()
+    .integer('Datasource ID must be an integer')
+    .positive('Datasource ID must be positive')
+    .required('Datasource ID is required'),
+  url: yup.string().url('Invalid URL format').required('URL is required'),
+});
+
+const documentWithIdSchema = yup.object().shape({
+  datasourceId: yup.number()
+    .integer('Datasource ID must be an integer')
+    .positive('Datasource ID must be positive')
+    .required('Datasource ID is required'),
+  url: yup.string().url('Invalid URL format').required('Document URL is required'),
+  downloadUrl: yup.string().url('Invalid download URL format').required('Download URL is required'),
+  pathname: yup.string().required('Pathname is required'),
+  contentType: yup.string().required('Content type is required'),
+  contentDisposition: yup.string().required('Content disposition is required'),
+});
+
+const qaPairWithIdSchema = yup.object().shape({
+  datasourceId: yup.number()
+    .integer('Datasource ID must be an integer')
+    .positive('Datasource ID must be positive')
+    .required('Datasource ID is required'),
+  question: yup.string().required('Question is required'),
+  answer: yup.string().required('Answer is required'),
+  citations: yup.string().optional(),
+});
+
+const textContentWithIdSchema = yup.object().shape({
+  datasourceId: yup.number()
+    .integer('Datasource ID must be an integer')
+    .positive('Datasource ID must be positive')
+    .required('Datasource ID is required'),
+  content: yup.string().required('Text content is required'),
+});
+
+export const ingestionRequestSchema = yup.object().shape({
+  chatbotId: yup.string().required('Chatbot ID is required'),
+  websiteUrls: yup.array().of(websiteUrlWithIdSchema).optional(),
+  documents: yup.array().of(documentWithIdSchema).optional(),
+  qandaData: yup.array().of(qaPairWithIdSchema).optional(),
+  textContent: yup.array().of(textContentWithIdSchema).optional(),
 });
