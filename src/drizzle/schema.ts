@@ -375,7 +375,7 @@ export const widgetConfig = pgTable(
       .default(false),
 
     // Store as text[] to match API shape
-    initialMessage: text('initial_messages').notNull(),
+    initialMessage: text('initial_message').notNull(),
 
     suggestedMessages: text('suggested_messages')
       .array()

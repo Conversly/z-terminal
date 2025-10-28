@@ -183,10 +183,10 @@ export const handleUpsertWidget = async (
 				: toDbStyles(incoming.styles),
 			onlyAllowOnAddedDomains:
 				incoming.onlyAllowOnAddedDomains ?? existing?.onlyAllowOnAddedDomains ?? false,
-					initialMessages:
-						Array.isArray(incoming.initialMessages)
-							? incoming.initialMessages
-							: existing?.initialMessages ?? [],
+					initialMessage:
+						typeof incoming.initialMessage === 'string'
+							? incoming.initialMessage
+							: existing?.initialMessage ?? 'Hi! How can I help you today? 👋',
 			suggestedMessages:
 				Array.isArray(incoming.suggestedMessages)
 					? incoming.suggestedMessages
