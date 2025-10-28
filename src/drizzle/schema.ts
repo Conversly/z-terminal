@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, varchar, integer, boolean, json, decimal, index, uniqueIndex, uuid,foreignKey, primaryKey, real, pgEnum, customType } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, timestamp, varchar, integer, boolean, json, decimal, index, uniqueIndex, uuid,foreignKey, unique, real, pgEnum, customType } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 const vector = customType<{ data: number[] }>({
@@ -25,6 +25,56 @@ export const dataSourceType = pgEnum('DataSourceType', [
   'QNA',
   'DOCUMENT',
 ]);
+
+
+export const dataSourceStatus = pgEnum('DataSourceStatus', [
+  'QUEUEING',
+  'PROCESSING',
+  'COMPLETED',
+  'FAILED',
+]);
+
+
+export const chatbotStatus = pgEnum('ChatbotStatus', [
+  'TRAINING',
+  'ACTIVE',
+  'INACTIVE',
+]);
+
+
+// Message type enum
+export const messageType = pgEnum('MessageType', [
+  'USER',
+  'ASSISTANT',
+]);
+
+export const themeEnum = pgEnum('Theme', ['light', 'dark']);
+export const alignEnum = pgEnum('Align', ['left', 'right']);
+
+
+// Local TS types for JSON column typing. These are not DB enums, just
+// compile-time helpers to validate the shape of widget styles.
+type Theme = 'light' | 'dark';
+type Align = 'left' | 'right';
+
+export interface WidgetStyles {
+  theme: Theme;
+  headerColor: string;
+  userMessageColor: string;
+  buttonColor: string;
+  displayName: string;
+  profilePictureFile?: string | null;
+  chatIcon?: string | null;
+  autoOpenChatWindowAfter: number; // seconds
+  alignChatButton: Align;
+  messagePlaceholder: string;
+  footerText: string; // HTML
+  collectUserFeedback: boolean;
+  regenerateMessages: boolean;
+  continueShowingSuggestedMessages: boolean;
+  dismissableNoticeText: string; // HTML
+  hiddenPaths: string[];
+}
 
 
 export const user = pgTable(
@@ -96,6 +146,7 @@ export const chatBots = pgTable('chatbot', {
   name: varchar('name').notNull(),
   description: text('description').notNull(),
   systemPrompt: text('system_prompt').notNull(),
+  status: chatbotStatus().default('INACTIVE').notNull(), 
   createdAt: timestamp('created_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
   apiKey: varchar('api_key', { length: 255 }),
@@ -110,6 +161,40 @@ export const chatBots = pgTable('chatbot', {
   index('chatbot_user_id_idx').using('btree', table.userId.asc().nullsLast()),
 ]);
 
+export const originDomains = pgTable('origin_domains', {
+  id: serial('id').primaryKey(),
+  userId: uuid('user_id').notNull(),
+  chatbotId: integer('chatbot_id').notNull(),
+  apiKey: varchar('api_key', { length: 255 }).notNull(),
+  domain: varchar('domain').notNull(),
+  createdAt: timestamp('created_at', { mode: 'date', precision: 6 }).defaultNow(),
+}, (table) => [
+  // Foreign key to chatbot
+  foreignKey({
+    columns: [table.chatbotId],
+    foreignColumns: [chatBots.id],
+    name: 'origin_domains_chatbot_id_fkey',
+  })
+    .onUpdate('cascade')
+    .onDelete('cascade'),
+
+  // Foreign key to user (optional but helpful for filtering)
+  foreignKey({
+    columns: [table.userId],
+    foreignColumns: [user.id],
+    name: 'origin_domains_user_id_fkey',
+  })
+    .onUpdate('cascade')
+    .onDelete('cascade'),
+
+  // Prevent duplicate domains for the same chatbot
+  uniqueIndex('origin_domains_chatbot_id_domain_unique').on(table.chatbotId, table.domain),
+
+  // Indexes for fast lookups
+  index('origin_domains_api_key_idx').using('btree', table.apiKey.asc().nullsLast()),
+  index('origin_domains_chatbot_id_idx').using('btree', table.chatbotId.asc().nullsLast()),
+]);
+
 export const dataSources = pgTable('data_source', {
   id: serial('id').primaryKey(),
   chatbotId: integer('chatbot_id').notNull(),
@@ -118,6 +203,7 @@ export const dataSources = pgTable('data_source', {
   createdAt: timestamp('created_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
   name: varchar('name').notNull(),
+  status: dataSourceStatus().default('QUEUEING').notNull(),
   citation: text('citation'),
 }, (table) => [
   index('idx_datasource_citation').on(table.citation),
@@ -134,7 +220,6 @@ export const embeddings = pgTable('embeddings', {
   id: serial('id').primaryKey(),
   userId: uuid('user_id').notNull(),
   chatbotId: integer('chatbot_id').notNull(),
-  topic: varchar('topic').notNull(),
   text: varchar('text').notNull(),
   vector: real("vector").array(), // this stores float[] of length 768
   createdAt: timestamp('created_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
@@ -249,3 +334,65 @@ export const subscribedUsers = pgTable('subscribed_users', {
     .onUpdate('cascade')
     .onDelete('restrict'),
 ]);
+
+export const messages = pgTable('messages', {
+  id: serial('id').primaryKey(),
+  chatbotId: integer('chatbot_id').notNull(),
+  citations: text('citations').array().notNull(),
+  type: messageType().notNull(),
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
+  uniqueConvId: varchar('unique_conv_id', { length: 255 }).notNull(),
+}, (table) => [
+  index('messages_chatbot_id_idx').using('btree', table.chatbotId.asc().nullsLast()),
+  index('messages_unique_conv_id_idx').using('btree', table.uniqueConvId.asc().nullsLast()),
+
+  foreignKey({
+    columns: [table.chatbotId],
+    foreignColumns: [chatBots.id],
+    name: 'messages_chatbot_id_fkey',
+  })
+    .onUpdate('cascade')
+    .onDelete('cascade'),
+]);
+
+
+export const widgetConfig = pgTable(
+  'widget_config',
+  {
+    id: serial('id').primaryKey(),
+
+    chatbotId: integer('chatbot_id')
+      .notNull()
+      .references(() => chatBots.id, { onUpdate: 'cascade', onDelete: 'cascade' }),
+
+    styles: json('styles')
+      .$type<WidgetStyles>()
+      .notNull(),
+
+    onlyAllowOnAddedDomains: boolean('only_allow_on_added_domains')
+      .notNull()
+      .default(false),
+
+    // Store as text[] to match API shape
+    initialMessage: text('initial_messages').notNull(),
+
+    suggestedMessages: text('suggested_messages')
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
+    
+    
+    allowedDomains: text('allowed_domains')
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
+
+    createdAt: timestamp('created_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
+  },
+  (table) => [
+    unique('widget_config_chatbot_id_unique').on(table.chatbotId),
+    index('widget_config_chatbot_id_idx').using('btree', table.chatbotId.asc().nullsLast()),
+  ]
+);
