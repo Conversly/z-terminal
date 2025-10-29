@@ -20,7 +20,7 @@ RUN yarn build
 
 
 # Expose the port the app will run on.
-EXPOSE 8080
+EXPOSE 8020
 
 # Define the command to start the app
 CMD ["yarn", "start"]
