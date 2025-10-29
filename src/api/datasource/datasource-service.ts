@@ -402,8 +402,7 @@ export const handleFetchEmbeddings = async (
     const embeddings = await db
       .select({
         id: embeddingsTable.id,
-        text: embeddingsTable.text,
-        topic: embeddingsTable.topic,
+        text: embeddingsTable.text
       })
       .from(embeddingsTable)
       .where(

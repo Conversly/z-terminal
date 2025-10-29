@@ -66,7 +66,6 @@ export interface AddCitationResponse {
 export interface EmbeddingItem {
   id: number;
   text: string;
-  topic: string;
 }
 
 export interface FetchEmbeddingsResponse {
