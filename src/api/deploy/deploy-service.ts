@@ -102,7 +102,7 @@ export const handleGetWidget = async (
 		throw new ApiError('Chatbot not found or does not belong to user', httpStatus.NOT_FOUND);
 	}
 
-	const row = await db
+	let row = await db
 		.select()
 		.from(widgetConfigTable)
 		.where(eq(widgetConfigTable.chatbotId, chatbotId))
@@ -110,33 +110,22 @@ export const handleGetWidget = async (
 		.then((r) => r[0]);
 
 	if (!row) {
-		// If no config exists, return defaults as partial
-		const defaults: ChatbotCustomization = {
-			styles: {
-				theme: defaultDbStyles.theme,
-				headerColor: defaultDbStyles.headerColor,
-				userMessageColor: defaultDbStyles.userMessageColor,
-				buttonColor: defaultDbStyles.buttonColor,
-				displayName: defaultDbStyles.displayName,
-				profilePictureFile: defaultDbStyles.profilePictureFile,
-				chatIcon: defaultDbStyles.chatIcon,
-				autoOpenChatWindowAfter: defaultDbStyles.autoOpenChatWindowAfter,
-				alignChatButton: defaultDbStyles.alignChatButton,
-				messagePlaceholder: defaultDbStyles.messagePlaceholder,
-				footerText: defaultDbStyles.footerText,
-				collectUserFeedback: defaultDbStyles.collectUserFeedback,
-				regenerateMessages: defaultDbStyles.regenerateMessages,
-				continueShowingSuggestedMessages: defaultDbStyles.continueShowingSuggestedMessages,
-				dismissableNoticeText: defaultDbStyles.dismissableNoticeText,
-				hiddenPaths: defaultDbStyles.hiddenPaths,
-			},
+		// If no config exists, create it with defaults
+		const defaultValues = {
+			chatbotId: chatbotId,
+			styles: defaultDbStyles,
 			onlyAllowOnAddedDomains: false,
 			initialMessage: 'Hi! How can I help you today? 👋',
 			suggestedMessages: [],
 			allowedDomains: [],
+			createdAt: new Date(),
+			updatedAt: new Date(),
 		};
 
-		return { chatbotId: String(chatbotId), partial: defaults };
+		[row] = await db
+			.insert(widgetConfigTable)
+			.values(defaultValues)
+			.returning();
 	}
 
 	return {
