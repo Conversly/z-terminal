@@ -10,49 +10,87 @@ import {
 } from '../../drizzle/schema';
 import { ChatbotWidget, ChatbotCustomization, WidgetStyles } from './types';
 
-// Defaults for DB styles structure
+
 const defaultDbStyles: DbWidgetStyles = {
-	theme: 'light',
-	headerColor: '#0e4b75',
-	userMessageColor: '#0e4b75',
-	buttonColor: '#0e4b75',
+	appearance: 'light',  // renamed from 'theme'
+	displayStyle: 'corner',  // NEW: default to corner
 	displayName: 'Support Bot',
-	profilePictureFile: null,
-	chatIcon: 'chat',
-	autoOpenChatWindowAfter: 0,
+	
+	// Colors
+	primaryColor: '#0e4b75',  // replaces headerColor, buttonColor
+	widgetBubbleColour: '#0e4b75',  // NEW: for message bubbles
+	
+	// Icons & Assets
+	PrimaryIcon: '',  // renamed from profilePictureFile
+	widgeticon: 'chat',  // renamed from chatIcon
+	
+	// Button Configuration
 	alignChatButton: 'right',
+	showButtonText: false,  // NEW
+	buttonText: 'Chat',  // NEW
+	
+	// Messages & Placeholders
 	messagePlaceholder: 'Message...',
-		footerText: 'Powered by Conversly',
+	footerText: 'Powered by Conversly',  // HTML
+	dismissableNoticeText: '',  // HTML
+	
+	// Dimensions
+	chatWidth: '400px',  // NEW
+	chatHeight: '600px',  // NEW
+	
+	// Behavior Flags
+	autoShowInitial: false,  // NEW
+	autoShowDelaySec: 0,  // renamed from autoOpenChatWindowAfter
 	collectUserFeedback: true,
 	regenerateMessages: true,
 	continueShowingSuggestedMessages: false,
-		dismissableNoticeText: '',
-	hiddenPaths: [],
+	
+	// REMOVED: hiddenPaths
+	// REMOVED: userMessageColor (now using primaryColor)
 };
 
+// please do not remove comments from widget config. mai confuse ho jata hun
 function toDbStyles(incoming?: Partial<WidgetStyles>): DbWidgetStyles {
 	const styles = incoming || {};
 	return {
 		...defaultDbStyles,
-		...(styles.theme !== undefined ? { theme: styles.theme } : {}),
-		...(styles.headerColor !== undefined ? { headerColor: styles.headerColor } : {}),
-		...(styles.userMessageColor !== undefined ? { userMessageColor: styles.userMessageColor } : {}),
-		...(styles.buttonColor !== undefined ? { buttonColor: styles.buttonColor } : {}),
+		// Appearance & Display
+		...(styles.appearance !== undefined ? { appearance: styles.appearance } : {}),
+		...(styles.displayStyle !== undefined ? { displayStyle: styles.displayStyle } : {}),
 		...(styles.displayName !== undefined ? { displayName: styles.displayName } : {}),
-		...(styles.profilePictureFile !== undefined ? { profilePictureFile: styles.profilePictureFile } : {}),
-		...(styles.chatIcon !== undefined ? { chatIcon: styles.chatIcon } : {}),
-		...(styles.autoOpenChatWindowAfter !== undefined ? { autoOpenChatWindowAfter: styles.autoOpenChatWindowAfter } : {}),
+		
+		// Colors
+		...(styles.primaryColor !== undefined ? { primaryColor: styles.primaryColor } : {}),
+		...(styles.widgetBubbleColour !== undefined ? { widgetBubbleColour: styles.widgetBubbleColour } : {}),
+		
+		// Icons & Assets
+		...(styles.PrimaryIcon !== undefined ? { PrimaryIcon: styles.PrimaryIcon } : {}),
+		...(styles.widgeticon !== undefined ? { widgeticon: styles.widgeticon } : {}),
+		
+		// Button Configuration
 		...(styles.alignChatButton !== undefined ? { alignChatButton: styles.alignChatButton } : {}),
+		...(styles.showButtonText !== undefined ? { showButtonText: styles.showButtonText } : {}),
+		...(styles.buttonText !== undefined ? { buttonText: styles.buttonText } : {}),
+		
+		// Messages & Placeholders
 		...(styles.messagePlaceholder !== undefined ? { messagePlaceholder: styles.messagePlaceholder } : {}),
 		...(styles.footerText !== undefined ? { footerText: styles.footerText } : {}),
+		...(styles.dismissableNoticeText !== undefined ? { dismissableNoticeText: styles.dismissableNoticeText } : {}),
+		
+		// Dimensions
+		...(styles.chatWidth !== undefined ? { chatWidth: styles.chatWidth } : {}),
+		...(styles.chatHeight !== undefined ? { chatHeight: styles.chatHeight } : {}),
+		
+		// Behavior Flags
+		...(styles.autoShowInitial !== undefined ? { autoShowInitial: styles.autoShowInitial } : {}),
+		...(styles.autoShowDelaySec !== undefined ? { autoShowDelaySec: styles.autoShowDelaySec } : {}),
 		...(styles.collectUserFeedback !== undefined ? { collectUserFeedback: styles.collectUserFeedback } : {}),
 		...(styles.regenerateMessages !== undefined ? { regenerateMessages: styles.regenerateMessages } : {}),
 		...(styles.continueShowingSuggestedMessages !== undefined ? { continueShowingSuggestedMessages: styles.continueShowingSuggestedMessages } : {}),
-		...(styles.dismissableNoticeText !== undefined ? { dismissableNoticeText: styles.dismissableNoticeText } : {}),
-		...(styles.hiddenPaths !== undefined ? { hiddenPaths: styles.hiddenPaths } : {}),
 	} as DbWidgetStyles;
 }
 
+// please do not remove comments from widget config. mai confuse ho jata hun
 function fromDbToCustomization(row: {
 	styles: DbWidgetStyles;
 	onlyAllowOnAddedDomains: boolean;
@@ -62,22 +100,38 @@ function fromDbToCustomization(row: {
 }): ChatbotCustomization {
 	return {
 		styles: {
-			theme: row.styles.theme,
-			headerColor: row.styles.headerColor,
-			userMessageColor: row.styles.userMessageColor,
-			buttonColor: row.styles.buttonColor,
+			appearance: row.styles.appearance,  // renamed from 'theme'
+			displayStyle: row.styles.displayStyle,  // NEW
 			displayName: row.styles.displayName,
-			profilePictureFile: row.styles.profilePictureFile ?? null,
-			chatIcon: row.styles.chatIcon ?? null,
-			autoOpenChatWindowAfter: row.styles.autoOpenChatWindowAfter,
+			
+			// Colors
+			primaryColor: row.styles.primaryColor,  // replaces headerColor, buttonColor
+			widgetBubbleColour: row.styles.widgetBubbleColour,  // NEW
+			
+			// Icons & Assets
+			PrimaryIcon: row.styles.PrimaryIcon,  // renamed from profilePictureFile
+			widgeticon: row.styles.widgeticon,  // renamed from chatIcon
+			
+			// Button Configuration
 			alignChatButton: row.styles.alignChatButton,
+			showButtonText: row.styles.showButtonText,  // NEW
+			buttonText: row.styles.buttonText,  // NEW
+			
+			// Messages & Placeholders
 			messagePlaceholder: row.styles.messagePlaceholder,
-			footerText: row.styles.footerText,
+			footerText: row.styles.footerText,  // HTML
+			dismissableNoticeText: row.styles.dismissableNoticeText,  // HTML
+			
+			// Dimensions
+			chatWidth: row.styles.chatWidth,  // NEW
+			chatHeight: row.styles.chatHeight,  // NEW
+			
+			// Behavior Flags
+			autoShowInitial: row.styles.autoShowInitial,  // NEW
+			autoShowDelaySec: row.styles.autoShowDelaySec,  // renamed from autoOpenChatWindowAfter
 			collectUserFeedback: row.styles.collectUserFeedback,
 			regenerateMessages: row.styles.regenerateMessages,
 			continueShowingSuggestedMessages: row.styles.continueShowingSuggestedMessages,
-			dismissableNoticeText: row.styles.dismissableNoticeText,
-			hiddenPaths: row.styles.hiddenPaths || [],
 		},
 		onlyAllowOnAddedDomains: row.onlyAllowOnAddedDomains,
 		initialMessage: row.initialMessage || '',

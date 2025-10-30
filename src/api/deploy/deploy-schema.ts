@@ -10,28 +10,47 @@ const domainString = yup
 	.trim()
 	.matches(domainRegex, 'Must be a valid domain (e.g., example.com)');
 
+// please do not remove comments from widget config. mai confuse ho jata hun
 const stylesSchema = yup.object().shape({
-	theme: yup.mixed().oneOf(['light', 'dark']).optional(),
-	headerColor: hexColor.optional(),
-	userMessageColor: hexColor.optional(),
-	buttonColor: hexColor.optional(),
+	appearance: yup.mixed().oneOf(['light', 'dark']).optional(),  // renamed from 'theme'
+	displayStyle: yup.mixed().oneOf(['corner', 'overlay']).optional(),  // NEW
 	displayName: yup.string().trim().max(100, 'Display name too long').optional(),
-	// Accept a URL string or null for profile picture; backend can resolve uploads separately
-	profilePictureFile: yup.mixed().nullable().optional(),
-	chatIcon: yup.string().trim().optional(),
-	autoOpenChatWindowAfter: yup
+	
+	// Colors
+	primaryColor: hexColor.optional(),  // replaces headerColor, buttonColor
+	bubbleBubbleColour: hexColor.optional(),  // NEW: for message bubbles
+	
+	// Icons & Assets
+	PrimaryIcon: yup.string().trim().optional(),  // renamed from profilePictureFile
+	widgeticon: yup.string().trim().optional(),  // renamed from chatIcon
+	
+	// Button Configuration
+	alignChatButton: yup.mixed().oneOf(['left', 'right']).optional(),
+	showButtonText: yup.boolean().optional(),  // NEW
+	buttonText: yup.string().trim().max(100).optional(),  // NEW
+	
+	// Messages & Placeholders
+	messagePlaceholder: yup.string().trim().max(200).optional(),
+	footerText: yup.string().trim().max(500).optional(),  // HTML
+	dismissableNoticeText: yup.string().trim().max(500).optional(),  // HTML
+	
+	// Dimensions
+	chatWidth: yup.string().trim().optional(),  // NEW
+	chatHeight: yup.string().trim().optional(),  // NEW
+	
+	// Behavior Flags
+	autoShowInitial: yup.boolean().optional(),  // NEW
+	autoShowDelaySec: yup
 		.number()
 		.min(0, 'Must be >= 0')
 		.max(60, 'Must be <= 60 seconds')
-		.optional(),
-	alignChatButton: yup.mixed().oneOf(['left', 'right']).optional(),
-	messagePlaceholder: yup.string().trim().max(200).optional(),
-	footerText: yup.string().trim().max(200).optional(),
+		.optional(),  // renamed from autoOpenChatWindowAfter
 	collectUserFeedback: yup.boolean().optional(),
 	regenerateMessages: yup.boolean().optional(),
 	continueShowingSuggestedMessages: yup.boolean().optional(),
-	dismissableNoticeText: yup.string().trim().max(500).optional(),
-	hiddenPaths: yup.array().of(yup.string().trim().required()).optional(),
+	
+	// REMOVED: hiddenPaths
+	// REMOVED: userMessageColor (now using primaryColor)
 });
 
 export const deployWidgetSchema = yup.object().shape({

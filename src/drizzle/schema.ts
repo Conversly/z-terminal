@@ -48,34 +48,6 @@ export const messageType = pgEnum('MessageType', [
   'assistant',
 ]);
 
-export const themeEnum = pgEnum('Theme', ['light', 'dark']);
-export const alignEnum = pgEnum('Align', ['left', 'right']);
-
-
-// Local TS types for JSON column typing. These are not DB enums, just
-// compile-time helpers to validate the shape of widget styles.
-type Theme = 'light' | 'dark';
-type Align = 'left' | 'right';
-
-export interface WidgetStyles {
-  theme: Theme;
-  headerColor: string;
-  userMessageColor: string;
-  buttonColor: string;
-  displayName: string;
-  profilePictureFile?: string | null;
-  chatIcon?: string | null;
-  autoOpenChatWindowAfter: number; // seconds
-  alignChatButton: Align;
-  messagePlaceholder: string;
-  footerText: string; // HTML
-  collectUserFeedback: boolean;
-  regenerateMessages: boolean;
-  continueShowingSuggestedMessages: boolean;
-  dismissableNoticeText: string; // HTML
-  hiddenPaths: string[];
-}
-
 
 export const user = pgTable(
   'user',
@@ -357,6 +329,54 @@ export const messages = pgTable('messages', {
 ]);
 
 
+// please do not remove comments from widget config. mai confuse ho jata hun
+export const themeEnum = pgEnum('Theme', ['light', 'dark']);
+export const alignEnum = pgEnum('Align', ['left', 'right']);
+export const displayStyleEnum = pgEnum('DisplayStyle', ['corner', 'overlay']);
+
+type Theme = 'light' | 'dark';
+type Align = 'left' | 'right';
+type DisplayStyle = 'corner' | 'overlay';
+
+export interface WidgetStyles {
+  appearance: Theme;  // renamed from 'theme'
+  displayStyle: DisplayStyle;  // NEW: corner or overlay
+  displayName: string;  // keeping camelCase in DB
+  
+  // Colors
+  primaryColor: string;  // replaces headerColor, buttonColor
+  widgetBubbleColour: string;  // NEW: for message bubbles
+  
+  // Icons & Assets
+  PrimaryIcon: string;  // renamed from profilePictureFile
+  widgeticon: string;  // renamed from chatIcon (for the widget button icon)
+  
+  // Button Configuration
+  alignChatButton: Align;  // maps to buttonAlignment in frontend
+  showButtonText: boolean;  // NEW
+  buttonText: string;  // NEW: text shown on widget button
+  
+  // Messages & Placeholders
+  messagePlaceholder: string;
+  footerText: string;  // HTML
+  dismissableNoticeText: string;  // maps to dismissibleNoticeText. HTML
+  
+  // Dimensions
+  chatWidth: string;  // NEW
+  chatHeight: string;  // NEW
+  
+  // Behavior Flags
+  autoShowInitial: boolean;  // NEW: replaces autoOpenChatWindowAfter > 0 check
+  autoShowDelaySec: number;  // renamed from autoOpenChatWindowAfter
+  collectUserFeedback: boolean;  // maps to collectFeedback
+  regenerateMessages: boolean;  // maps to allowRegenerate
+  continueShowingSuggestedMessages: boolean;  // maps to keepShowingSuggested
+  
+  // REMOVED: hiddenPaths (if no longer needed)
+  // REMOVED: userMessageColor (now using primaryColor)
+}
+
+
 export const widgetConfig = pgTable(
   'widget_config',
   {
@@ -374,14 +394,13 @@ export const widgetConfig = pgTable(
       .notNull()
       .default(false),
 
-    // Store as text[] to match API shape
+    // Keep these as separate columns (good practice)
     initialMessage: text('initial_message').notNull(),
 
     suggestedMessages: text('suggested_messages')
       .array()
       .notNull()
       .default(sql`ARRAY[]::text[]`),
-    
     
     allowedDomains: text('allowed_domains')
       .array()
