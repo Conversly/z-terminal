@@ -44,8 +44,8 @@ export const chatbotStatus = pgEnum('ChatbotStatus', [
 
 // Message type enum
 export const messageType = pgEnum('MessageType', [
-  'USER',
-  'ASSISTANT',
+  'user',
+  'assistant',
 ]);
 
 export const themeEnum = pgEnum('Theme', ['light', 'dark']);
