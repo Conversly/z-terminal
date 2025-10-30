@@ -6,139 +6,24 @@ import { and, eq } from 'drizzle-orm';
 import {
 	chatBots as chatBotsTable,
 	widgetConfig as widgetConfigTable,
+	originDomains as originDomainsTable,
 	WidgetStyles as DbWidgetStyles,
 } from '../../drizzle/schema';
-import { ChatbotWidget, ChatbotCustomization, WidgetStyles } from './types';
-
-
-const defaultDbStyles: DbWidgetStyles = {
-	appearance: 'light',  // renamed from 'theme'
-	displayStyle: 'corner',  // NEW: default to corner
-	displayName: 'Support Bot',
-	
-	// Colors
-	primaryColor: '#0e4b75',  // replaces headerColor, buttonColor
-	widgetBubbleColour: '#0e4b75',  // NEW: for message bubbles
-	
-	// Icons & Assets
-	PrimaryIcon: '',  // renamed from profilePictureFile
-	widgeticon: 'chat',  // renamed from chatIcon
-	
-	// Button Configuration
-	alignChatButton: 'right',
-	showButtonText: false,  // NEW
-	buttonText: 'Chat',  // NEW
-	
-	// Messages & Placeholders
-	messagePlaceholder: 'Message...',
-	footerText: 'Powered by Conversly',  // HTML
-	dismissableNoticeText: '',  // HTML
-	
-	// Dimensions
-	chatWidth: '400px',  // NEW
-	chatHeight: '600px',  // NEW
-	
-	// Behavior Flags
-	autoShowInitial: false,  // NEW
-	autoShowDelaySec: 0,  // renamed from autoOpenChatWindowAfter
-	collectUserFeedback: true,
-	regenerateMessages: true,
-	continueShowingSuggestedMessages: false,
-	
-	// REMOVED: hiddenPaths
-	// REMOVED: userMessageColor (now using primaryColor)
-};
-
-// please do not remove comments from widget config. mai confuse ho jata hun
-function toDbStyles(incoming?: Partial<WidgetStyles>): DbWidgetStyles {
-	const styles = incoming || {};
-	return {
-		...defaultDbStyles,
-		// Appearance & Display
-		...(styles.appearance !== undefined ? { appearance: styles.appearance } : {}),
-		...(styles.displayStyle !== undefined ? { displayStyle: styles.displayStyle } : {}),
-		...(styles.displayName !== undefined ? { displayName: styles.displayName } : {}),
-		
-		// Colors
-		...(styles.primaryColor !== undefined ? { primaryColor: styles.primaryColor } : {}),
-		...(styles.widgetBubbleColour !== undefined ? { widgetBubbleColour: styles.widgetBubbleColour } : {}),
-		
-		// Icons & Assets
-		...(styles.PrimaryIcon !== undefined ? { PrimaryIcon: styles.PrimaryIcon } : {}),
-		...(styles.widgeticon !== undefined ? { widgeticon: styles.widgeticon } : {}),
-		
-		// Button Configuration
-		...(styles.alignChatButton !== undefined ? { alignChatButton: styles.alignChatButton } : {}),
-		...(styles.showButtonText !== undefined ? { showButtonText: styles.showButtonText } : {}),
-		...(styles.buttonText !== undefined ? { buttonText: styles.buttonText } : {}),
-		
-		// Messages & Placeholders
-		...(styles.messagePlaceholder !== undefined ? { messagePlaceholder: styles.messagePlaceholder } : {}),
-		...(styles.footerText !== undefined ? { footerText: styles.footerText } : {}),
-		...(styles.dismissableNoticeText !== undefined ? { dismissableNoticeText: styles.dismissableNoticeText } : {}),
-		
-		// Dimensions
-		...(styles.chatWidth !== undefined ? { chatWidth: styles.chatWidth } : {}),
-		...(styles.chatHeight !== undefined ? { chatHeight: styles.chatHeight } : {}),
-		
-		// Behavior Flags
-		...(styles.autoShowInitial !== undefined ? { autoShowInitial: styles.autoShowInitial } : {}),
-		...(styles.autoShowDelaySec !== undefined ? { autoShowDelaySec: styles.autoShowDelaySec } : {}),
-		...(styles.collectUserFeedback !== undefined ? { collectUserFeedback: styles.collectUserFeedback } : {}),
-		...(styles.regenerateMessages !== undefined ? { regenerateMessages: styles.regenerateMessages } : {}),
-		...(styles.continueShowingSuggestedMessages !== undefined ? { continueShowingSuggestedMessages: styles.continueShowingSuggestedMessages } : {}),
-	} as DbWidgetStyles;
-}
-
-// please do not remove comments from widget config. mai confuse ho jata hun
-function fromDbToCustomization(row: {
-	styles: DbWidgetStyles;
-	onlyAllowOnAddedDomains: boolean;
-	initialMessage: string;
-	suggestedMessages: string[];
-	allowedDomains: string[];
-}): ChatbotCustomization {
-	return {
-		styles: {
-			appearance: row.styles.appearance,  // renamed from 'theme'
-			displayStyle: row.styles.displayStyle,  // NEW
-			displayName: row.styles.displayName,
-			
-			// Colors
-			primaryColor: row.styles.primaryColor,  // replaces headerColor, buttonColor
-			widgetBubbleColour: row.styles.widgetBubbleColour,  // NEW
-			
-			// Icons & Assets
-			PrimaryIcon: row.styles.PrimaryIcon,  // renamed from profilePictureFile
-			widgeticon: row.styles.widgeticon,  // renamed from chatIcon
-			
-			// Button Configuration
-			alignChatButton: row.styles.alignChatButton,
-			showButtonText: row.styles.showButtonText,  // NEW
-			buttonText: row.styles.buttonText,  // NEW
-			
-			// Messages & Placeholders
-			messagePlaceholder: row.styles.messagePlaceholder,
-			footerText: row.styles.footerText,  // HTML
-			dismissableNoticeText: row.styles.dismissableNoticeText,  // HTML
-			
-			// Dimensions
-			chatWidth: row.styles.chatWidth,  // NEW
-			chatHeight: row.styles.chatHeight,  // NEW
-			
-			// Behavior Flags
-			autoShowInitial: row.styles.autoShowInitial,  // NEW
-			autoShowDelaySec: row.styles.autoShowDelaySec,  // renamed from autoOpenChatWindowAfter
-			collectUserFeedback: row.styles.collectUserFeedback,
-			regenerateMessages: row.styles.regenerateMessages,
-			continueShowingSuggestedMessages: row.styles.continueShowingSuggestedMessages,
-		},
-		onlyAllowOnAddedDomains: row.onlyAllowOnAddedDomains,
-		initialMessage: row.initialMessage || '',
-		suggestedMessages: row.suggestedMessages || [],
-		allowedDomains: row.allowedDomains || [],
-	};
-}
+import { 
+	ChatbotWidget, 
+	ChatbotCustomization,
+	ApiKeyResponse,
+	ApiKeyGetResponse,
+	AllowedDomainsResponse,
+	AddDomainResponse
+} from './types';
+import {
+	fromDbToCustomization,
+	toDbStyles,
+	defaultDbStyles,
+	verifyChatbotOwnership,
+	generateApiKey,
+} from './deploy-helper'
 
 export const handleGetWidget = async (
 	userId: string,
@@ -171,7 +56,6 @@ export const handleGetWidget = async (
 			onlyAllowOnAddedDomains: false,
 			initialMessage: 'Hi! How can I help you today? 👋',
 			suggestedMessages: [],
-			allowedDomains: [],
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		};
@@ -234,10 +118,6 @@ export const handleUpsertWidget = async (
 				Array.isArray(incoming.suggestedMessages)
 					? incoming.suggestedMessages
 					: existing?.suggestedMessages ?? [],
-			allowedDomains:
-				Array.isArray(incoming.allowedDomains)
-					? incoming.allowedDomains
-					: existing?.allowedDomains ?? [],
 			updatedAt: new Date(),
 		} as any;
 
@@ -271,5 +151,112 @@ export const handleUpsertWidget = async (
 		if (error instanceof ApiError) throw error;
 		throw new ApiError('Error saving widget config', httpStatus.INTERNAL_SERVER_ERROR);
 	}
+};
+
+// Handle generating/regenerating API key
+export const handleGenerateApiKey = async (
+	userId: string,
+	chatbotId: number
+): Promise<ApiKeyResponse> => {
+	await verifyChatbotOwnership(chatbotId, userId);
+
+	const apiKey = generateApiKey();
+
+	// Update chatbot with new API key
+	const [updated] = await db
+		.update(chatBotsTable)
+		.set({ apiKey, updatedAt: new Date() })
+		.where(eq(chatBotsTable.id, chatbotId))
+		.returning();
+
+	if (!updated) {
+		throw new ApiError('Failed to generate API key', httpStatus.INTERNAL_SERVER_ERROR);
+	}
+
+	return { apiKey: updated.apiKey! };
+};
+
+// Handle getting API key
+export const handleGetApiKey = async (
+	userId: string,
+	chatbotId: number
+): Promise<ApiKeyGetResponse> => {
+	// Verify ownership
+	const chatbot = await verifyChatbotOwnership(chatbotId, userId);
+
+	return { apiKey: chatbot.apiKey || null };
+};
+
+// Handle getting all allowed domains
+export const handleGetAllowedDomains = async (
+	userId: string,
+	chatbotId: number
+): Promise<AllowedDomainsResponse> => {
+	await verifyChatbotOwnership(chatbotId, userId);
+
+	const domains = await db
+		.select({
+			id: originDomainsTable.id,
+			domain: originDomainsTable.domain,
+			createdAt: originDomainsTable.createdAt,
+		})
+		.from(originDomainsTable)
+		.where(eq(originDomainsTable.chatbotId, chatbotId));
+
+	return { domains };
+};
+
+// Handle adding a new allowed domain
+export const handleAddAllowedDomain = async (
+	userId: string,
+	chatbotId: number,
+	domain: string
+): Promise<AddDomainResponse> => {
+	// Verify ownership
+	const chatbot = await verifyChatbotOwnership(chatbotId, userId);
+
+	// Check if API key exists
+	if (!chatbot.apiKey || chatbot.apiKey.trim() === '') {
+		throw new ApiError('Create API key first', httpStatus.BAD_REQUEST);
+	}
+
+	// Check if domain already exists for this chatbot
+	const existingDomain = await db
+		.select()
+		.from(originDomainsTable)
+		.where(
+			and(
+				eq(originDomainsTable.chatbotId, chatbotId),
+				eq(originDomainsTable.domain, domain)
+			)
+		)
+		.limit(1)
+		.then((r) => r[0]);
+
+	if (existingDomain) {
+		throw new ApiError('Domain already exists for this chatbot', httpStatus.CONFLICT);
+	}
+
+	// Add new domain
+	const [newDomain] = await db
+		.insert(originDomainsTable)
+		.values({
+			userId,
+			chatbotId,
+			apiKey: chatbot.apiKey,
+			domain,
+			createdAt: new Date(),
+		})
+		.returning();
+
+	if (!newDomain) {
+		throw new ApiError('Failed to add domain', httpStatus.INTERNAL_SERVER_ERROR);
+	}
+
+	return {
+		id: newDomain.id,
+		domain: newDomain.domain,
+		createdAt: newDomain.createdAt,
+	};
 };
 

@@ -401,11 +401,6 @@ export const widgetConfig = pgTable(
       .array()
       .notNull()
       .default(sql`ARRAY[]::text[]`),
-    
-    allowedDomains: text('allowed_domains')
-      .array()
-      .notNull()
-      .default(sql`ARRAY[]::text[]`),
 
     createdAt: timestamp('created_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
     updatedAt: timestamp('updated_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),

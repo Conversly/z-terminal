@@ -38,10 +38,35 @@ export interface ChatbotCustomization {
     onlyAllowOnAddedDomains: boolean;
     initialMessage: string;
     suggestedMessages: string[];
-    allowedDomains: string[];
 }
 
 export interface ChatbotWidget {
     chatbotId: string;
     partial: ChatbotCustomization;
+}
+
+// API Key Response Types
+export interface ApiKeyResponse {
+    apiKey: string;
+}
+
+export interface ApiKeyGetResponse {
+    apiKey: string | null;
+}
+
+// Domain Response Types
+export interface DomainInfo {
+    id: number;
+    domain: string;
+    createdAt: Date | null;
+}
+
+export interface AllowedDomainsResponse {
+    domains: DomainInfo[];
+}
+
+export interface AddDomainResponse {
+    id: number;
+    domain: string;
+    createdAt: Date | null;
 }

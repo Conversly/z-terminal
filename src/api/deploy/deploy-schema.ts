@@ -69,7 +69,6 @@ export const deployWidgetSchema = yup.object().shape({
 				.array()
 				.of(yup.string().trim().max(200))
 				.optional(),
-			allowedDomains: yup.array().of(domainString).optional(),
 		})
 		.test(
 			'domains-required',
@@ -83,6 +82,14 @@ export const deployWidgetSchema = yup.object().shape({
 			}
 		)
 		.required('Partial config is required'),
+});
+
+export const addAllowedDomainSchema = yup.object().shape({
+	chatbotId: yup
+		.string()
+		.matches(/^\d+$/, 'Chatbot ID must be a valid number')
+		.required('Chatbot ID is required'),
+	domain: domainString.required('Domain is required'),
 });
 
 export const fetchWidgetSchema = yup.object().shape({
