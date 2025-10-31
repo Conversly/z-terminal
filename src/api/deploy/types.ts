@@ -40,9 +40,23 @@ export interface ChatbotCustomization {
     suggestedMessages: string[];
 }
 
+export interface ChatbotCustomizationExternal {
+    styles: WidgetStyles;
+    converslyWebId: string;   // chatbot api key
+    uniqueClientId: string;   // unique identifier for this conversation instance
+    initialMessage: string;
+    suggestedMessages: string[];
+} 
+
+
 export interface ChatbotWidget {
     chatbotId: string;
     partial: ChatbotCustomization;
+}
+
+export interface chatbotWidgetExternal {
+    chatbotId : string;
+    partial : ChatbotCustomizationExternal;
 }
 
 // API Key Response Types
@@ -70,3 +84,6 @@ export interface AddDomainResponse {
     domain: string;
     createdAt: Date | null;
 }
+
+
+

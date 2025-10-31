@@ -36,39 +36,44 @@ export const generateApiKey = (): string => {
 	return `wt_${randomBytes(32).toString('hex')}`;
 };
 
+// Generate a unique client ID for widget instances
+export const generateUniqueClientId = (): string => {
+	return `client_${randomBytes(16).toString('hex')}`;
+};
+
 export const defaultDbStyles: DbWidgetStyles = {
-    appearance: 'light',  // renamed from 'theme'
-    displayStyle: 'corner',  // NEW: default to corner
-    displayName: 'Support Bot',
+    appearance: 'light',
+    displayStyle: 'overlay',
+    displayName: 'AI Assistant',
     
     // Colors
-    primaryColor: '#0e4b75',  // replaces headerColor, buttonColor
-    widgetBubbleColour: '#0e4b75',  // NEW: for message bubbles
+    primaryColor: '#6366f1',
+    widgetBubbleColour: '#6366f1',
     
     // Icons & Assets
-    PrimaryIcon: '',  // renamed from profilePictureFile
-    widgeticon: 'chat',  // renamed from chatIcon
+    PrimaryIcon: 'https://images.pexels.com/photos/20674220/pexels-photo-20674220.jpeg',
+    widgeticon: 'https://api.dicebear.com/7.x/bottts/svg?seed=chat',
     
     // Button Configuration
     alignChatButton: 'right',
-    showButtonText: false,  // NEW
-    buttonText: 'Chat',  // NEW
+    showButtonText: true,
+    buttonText: 'Chat with us',
     
     // Messages & Placeholders
-    messagePlaceholder: 'Message...',
-    footerText: 'Powered by Conversly',  // HTML
-    dismissableNoticeText: '',  // HTML
+    messagePlaceholder: 'Type your message here...',
+    footerText: 'Powered by <strong>AI</strong>',
+    dismissableNoticeText: '<strong>Welcome!</strong> This is a demo chatbot widget. Feel free to explore its features.',
     
     // Dimensions
-    chatWidth: '400px',  // NEW
-    chatHeight: '600px',  // NEW
+    chatWidth: '800px',
+    chatHeight: '550px',
     
     // Behavior Flags
-    autoShowInitial: false,  // NEW
-    autoShowDelaySec: 0,  // renamed from autoOpenChatWindowAfter
+    autoShowInitial: false,
+    autoShowDelaySec: 3,
     collectUserFeedback: true,
     regenerateMessages: true,
-    continueShowingSuggestedMessages: false,
+    continueShowingSuggestedMessages: true,
     
     // REMOVED: hiddenPaths
     // REMOVED: userMessageColor (now using primaryColor)

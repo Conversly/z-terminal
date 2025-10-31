@@ -23,6 +23,7 @@ import {
 	defaultDbStyles,
 	verifyChatbotOwnership,
 	generateApiKey,
+	generateUniqueClientId,
 } from './deploy-helper'
 
 export const handleGetWidget = async (
@@ -54,8 +55,13 @@ export const handleGetWidget = async (
 			chatbotId: chatbotId,
 			styles: defaultDbStyles,
 			onlyAllowOnAddedDomains: false,
-			initialMessage: 'Hi! How can I help you today? 👋',
-			suggestedMessages: [],
+			initialMessage: 'Hi there! 👋 How can I help you today?',
+			suggestedMessages: [
+				'What can you help me with?',
+				'Tell me about your features',
+				'How do I get started?',
+				'Show me some examples',
+			],
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		};
@@ -71,6 +77,72 @@ export const handleGetWidget = async (
 		partial: fromDbToCustomization(row),
 	};
 };
+
+
+// External version does not verify ownership
+// Returns widget config with API key and unique client ID
+export const handleGetWidgetExternal = async (
+	chatbotId: number
+): Promise<any> => {
+	// Get chatbot without ownership check
+	const chatbot = await db
+		.select()
+		.from(chatBotsTable)
+		.where(eq(chatBotsTable.id, chatbotId))
+		.limit(1)
+		.then((r) => r[0]);
+
+	if (!chatbot) {
+		throw new ApiError('Chatbot not found', httpStatus.NOT_FOUND);
+	}
+
+	// Check if API key exists
+	if (!chatbot.apiKey) {
+		throw new ApiError('Chatbot API key not configured', httpStatus.BAD_REQUEST);
+	}
+
+	let row = await db
+		.select()
+		.from(widgetConfigTable)
+		.where(eq(widgetConfigTable.chatbotId, chatbotId))
+		.limit(1)
+		.then((r) => r[0]);
+
+	if (!row) {
+		const defaultValues = {
+			chatbotId: chatbotId,
+			styles: defaultDbStyles,
+			onlyAllowOnAddedDomains: false,
+			initialMessage: 'Hi there! 👋 How can I help you today?',
+			suggestedMessages: [
+				'What can you help me with?',
+				'Tell me about your features',
+				'How do I get started?',
+				'Show me some examples',
+			],
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		};
+
+		[row] = await db
+			.insert(widgetConfigTable)
+			.values(defaultValues)
+			.returning();
+	}
+
+	const customization = fromDbToCustomization(row);
+	const uniqueClientId = generateUniqueClientId();
+
+	return {
+		chatbotId: String(chatbotId),
+		partial: {
+			...customization,
+			converslyWebId: chatbot.apiKey,
+			uniqueClientId: uniqueClientId,
+		},
+	};
+};
+
 
 export const handleUpsertWidget = async (
 	userId: string,

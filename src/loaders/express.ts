@@ -16,7 +16,7 @@ const corsOptions = {
   origin:
     env.NODE_ENV === 'production'
       ? env.ALLOWED_ORIGINS!.split(',')
-      : ['http://localhost:3000', 'https://dev.trench.ag'],
+      : ['http://localhost:3000', 'http://localhost:5173'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-HMAC-Signature'],
@@ -24,12 +24,29 @@ const corsOptions = {
 };
 
 export default ({ app }: { app: express.Application }): void => {
+  app.options(`${apiPrefix}/deploy/widget/external`, (req, res) => {
+    const origin = req.headers.origin as string | undefined;
+    if (origin) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Vary', 'Origin');
+      res.header('Access-Control-Allow-Credentials', 'true');
+    } else {
+      res.header('Access-Control-Allow-Origin', '*');
+    }
+    res.header('Access-Control-Allow-Methods', 'GET,HEAD,OPTIONS,POST,PUT');
+    res.header(
+      'Access-Control-Allow-Headers',
+      'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-HMAC-Signature'
+    );
+    res.header('Access-Control-Max-Age', '86400');
+    return res.sendStatus(204);
+  });
+
   app.use(cors(corsOptions));
   app.options('*', cors(corsOptions));
 
   app.use(cookieParser());
 
-  // Apply the rate limiter to all requests
   app.use(rateLimiter);
 
   app.get('/', (req, res) => {

@@ -1,6 +1,6 @@
 import httpStatus from 'http-status';
 import catchAsync from '../../utils/catchAsync';
-import { Response, NextFunction } from 'express';
+import { Response, NextFunction, Request } from 'express';
 import { jwtReq } from '../../types';
 import { 
 	handleGetWidget, 
@@ -8,13 +8,26 @@ import {
 	handleGenerateApiKey,
 	handleGetApiKey,
 	handleGetAllowedDomains,
-	handleAddAllowedDomain
+	handleAddAllowedDomain,
+	handleGetWidgetExternal
 } from './deploy-service';
 
 export const getWidget = catchAsync(
 	async (req: jwtReq, res: Response, next: NextFunction) => {
-		const chatbotId = parseInt(req.params.chatbotId);
+		const chatbotId = parseInt(req.query.chatbotId as string);
 		const data = await handleGetWidget(req.user.userId as string, chatbotId);
+
+		res.status(httpStatus.OK).json({
+			success: true,
+			data,
+		});
+	}
+);
+
+export const getWidgetExternal = catchAsync(
+	async (req: Request, res: Response, next: NextFunction) => {
+		const chatbotId = parseInt(req.query.chatbotId as string);
+		const data = await handleGetWidgetExternal(chatbotId);
 
 		res.status(httpStatus.OK).json({
 			success: true,
@@ -37,7 +50,7 @@ export const upsertWidget = catchAsync(
 
 export const generateApiKey = catchAsync(
 	async (req: jwtReq, res: Response, next: NextFunction) => {
-		const chatbotId = parseInt(req.params.chatbotId);
+		const chatbotId = parseInt(req.query.chatbotId as string);
 		const data = await handleGenerateApiKey(req.user.userId as string, chatbotId);
 
 		res.status(httpStatus.OK).json({
@@ -50,7 +63,7 @@ export const generateApiKey = catchAsync(
 
 export const getApiKey = catchAsync(
 	async (req: jwtReq, res: Response, next: NextFunction) => {
-		const chatbotId = parseInt(req.params.chatbotId);
+		const chatbotId = parseInt(req.query.chatbotId as string);
 		const data = await handleGetApiKey(req.user.userId as string, chatbotId);
 
 		res.status(httpStatus.OK).json({
@@ -62,7 +75,7 @@ export const getApiKey = catchAsync(
 
 export const getAllowedDomains = catchAsync(
 	async (req: jwtReq, res: Response, next: NextFunction) => {
-		const chatbotId = parseInt(req.params.chatbotId);
+		const chatbotId = parseInt(req.query.chatbotId as string);
 		const data = await handleGetAllowedDomains(req.user.userId as string, chatbotId);
 
 		res.status(httpStatus.OK).json({
