@@ -13,6 +13,19 @@ import { deployWidgetSchema, fetchWidgetSchema, addAllowedDomainSchema } from '.
 
 const app = express.Router();
 
+app.get('/widget/config', auth, validate('query', fetchWidgetSchema), getWidget);
+app.post('/widget',auth, validate('body', deployWidgetSchema), upsertWidget);
+
+// API Key routes
+app.post('/key', auth, validate('query', fetchWidgetSchema), generateApiKey);
+app.get('/key', auth, validate('query', fetchWidgetSchema), getApiKey);
+
+
+// Domain routes
+app.get('/widget/domains', auth, validate('query', fetchWidgetSchema), getAllowedDomains);
+app.post('/widget/domains', auth, validate('body', addAllowedDomainSchema), addAllowedDomain);
+
+
 
 app.get(
   '/widget/external',
@@ -40,17 +53,5 @@ app.get(
   validate('query', fetchWidgetSchema),
   getWidgetExternal
 );
-app.get('/widget/config', auth, validate('query', fetchWidgetSchema), getWidget);
-app.post('/widget', validate('body', deployWidgetSchema), upsertWidget);
-
-// API Key routes
-app.post('/key', auth, validate('query', fetchWidgetSchema), generateApiKey);
-app.get('/key', auth, validate('query', fetchWidgetSchema), getApiKey);
-
-
-// Domain routes
-app.get('/widget/domains', auth, validate('query', fetchWidgetSchema), getAllowedDomains);
-app.post('/widget/domains', auth, validate('body', addAllowedDomainSchema), addAllowedDomain);
-
 
 export default app;

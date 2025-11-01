@@ -68,17 +68,6 @@ export const deployWidgetSchema = yup.object().shape({
 				.of(yup.string().trim().max(200))
 				.optional(),
 		})
-		.test(
-			'domains-required',
-			'allowedDomains must be provided when onlyAllowOnAddedDomains is true',
-			function (value) {
-				if (!value) return true;
-				const onlyAllow = (value as any).onlyAllowOnAddedDomains;
-				const allowed = (value as any).allowedDomains as unknown[] | undefined;
-				if (onlyAllow) return Array.isArray(allowed) && allowed.length > 0;
-				return true;
-			}
-		)
 		.required('Partial config is required'),
 });
 
