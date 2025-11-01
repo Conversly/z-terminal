@@ -87,7 +87,7 @@ export const getAllowedDomains = catchAsync(
 
 export const addAllowedDomain = catchAsync(
 	async (req: jwtReq, res: Response, next: NextFunction) => {
-		const chatbotId = parseInt(req.body.chatbotId);
+		const chatbotId = parseInt(req.query.chatbotId as string);
 		const domain = req.body.domain;
 		const data = await handleAddAllowedDomain(req.user.userId as string, chatbotId, domain);
 

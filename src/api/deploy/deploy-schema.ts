@@ -10,13 +10,11 @@ const domainString = yup
 	.trim()
 	.matches(domainRegex, 'Must be a valid domain (e.g., example.com)');
 
-// please do not remove comments from widget config. mai confuse ho jata hun
 const stylesSchema = yup.object().shape({
 	appearance: yup.mixed().oneOf(['light', 'dark']).optional(),  // renamed from 'theme'
 	displayStyle: yup.mixed().oneOf(['corner', 'overlay']).optional(),  // NEW
 	displayName: yup.string().trim().max(100, 'Display name too long').optional(),
 	
-	// Colors
 	primaryColor: hexColor.optional(),  // replaces headerColor, buttonColor
 	bubbleBubbleColour: hexColor.optional(),  // NEW: for message bubbles
 	
@@ -85,10 +83,6 @@ export const deployWidgetSchema = yup.object().shape({
 });
 
 export const addAllowedDomainSchema = yup.object().shape({
-	chatbotId: yup
-		.string()
-		.matches(/^\d+$/, 'Chatbot ID must be a valid number')
-		.required('Chatbot ID is required'),
 	domain: domainString.required('Domain is required'),
 });
 
