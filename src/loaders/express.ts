@@ -16,7 +16,7 @@ const corsOptions = {
   origin:
     env.NODE_ENV === 'production'
       ? env.ALLOWED_ORIGINS!.split(',')
-      : ['http://localhost:3000', 'http://localhost:5173', 'https://frontend-v1-gules.vercel.app', 'https://frontend-v1-ochre.vercel.app'],
+      : ['http://localhost:3000', 'http://localhost:5173', 'https://frontend-v1-gules.vercel.app', 'https://frontend-v1-ochre.vercel.app', 'https://dev.verlyai.xyz'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-HMAC-Signature'],

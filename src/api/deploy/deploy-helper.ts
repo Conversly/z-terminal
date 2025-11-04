@@ -51,8 +51,8 @@ export const defaultDbStyles: DbWidgetStyles = {
     widgetBubbleColour: '#6366f1',
     
     // Icons & Assets
-    PrimaryIcon: 'https://images.pexels.com/photos/20674220/pexels-photo-20674220.jpeg',
-    widgeticon: 'https://api.dicebear.com/7.x/bottts/svg?seed=chat',
+    PrimaryIcon: 'https://rle3ob7wdla6y74q.public.blob.vercel-storage.com/Screenshot%202025-11-01%20at%203.18.10%E2%80%AFpm.png',
+    widgeticon: 'https://rle3ob7wdla6y74q.public.blob.vercel-storage.com/Screenshot%202025-11-01%20at%203.18.10%E2%80%AFpm.png',
     
     // Button Configuration
     alignChatButton: 'right',
