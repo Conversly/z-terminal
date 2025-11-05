@@ -4,6 +4,7 @@ export const createChatbotSchema = yup.object().shape({
   name: yup.string().required('Chatbot name is required').min(1, 'Name must not be empty'),
   description: yup.string().required('Description is required').min(1, 'Description must not be empty'),
   systemPrompt: yup.string().required('System prompt is required').min(1, 'System prompt must not be empty'),
+  status: yup.string().optional().default('INACTIVE'),
 });
 
 

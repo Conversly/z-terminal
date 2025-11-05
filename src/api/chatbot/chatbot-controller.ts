@@ -18,6 +18,7 @@ export const createChatbot = catchAsync(
       name: req.body.name,
       description: req.body.description,
       systemPrompt: req.body.systemPrompt,
+      status: req.body.status,
     };
 
     const chatbot = await handleCreateChatbot(req.user.userId as string, input);

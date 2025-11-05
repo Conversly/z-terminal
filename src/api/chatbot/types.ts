@@ -2,6 +2,7 @@ export interface CreateChatbotInput {
   name: string;
   description: string;
   systemPrompt: string;
+  status: string;
 }
 
 export interface ChatbotResponse {
@@ -10,6 +11,7 @@ export interface ChatbotResponse {
   name: string;
   description: string;
   systemPrompt: string;
+  status: string;
   createdAt: Date | null;
   updatedAt: Date | null;
   apiKey?: string | null;
@@ -29,6 +31,7 @@ export interface GetChatbotsResponse {
   name: string;
   description: string;
   createdAt: Date | null;
+  status: string;
   userId: string;
 }
 

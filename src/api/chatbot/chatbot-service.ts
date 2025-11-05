@@ -22,6 +22,7 @@ export const handleCreateChatbot = async (
         name: input.name,
         description: input.description,
         systemPrompt: input.systemPrompt,
+        status: input.status as 'DRAFT' | 'TRAINING' | 'ACTIVE' | 'INACTIVE',
         apiKey: null,
       })
       .returning();
@@ -173,6 +174,7 @@ export const handleGetChatbots = async (
         description: chatBotsTable.description,
         createdAt: chatBotsTable.createdAt,
         userId: chatBotsTable.userId,
+        status: chatBotsTable.status,
       })
       .from(chatBotsTable)
       .where(eq(chatBotsTable.userId, userId));
@@ -199,6 +201,7 @@ export const handleGetChatbot = async (
         createdAt: chatBotsTable.createdAt,
         updatedAt: chatBotsTable.updatedAt,
         userId: chatBotsTable.userId,
+        status: chatBotsTable.status,
       })
       .from(chatBotsTable)
       .where(eq(chatBotsTable.id, chatbotId))
