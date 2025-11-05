@@ -19,7 +19,7 @@ const getAllowedOrigins = (): string[] => {
   }
 
   // Development defaults
-  return ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173'];
+  return ['http://localhost:3000', 'https://dev.verlyai.xyz'];
 };
 
 export const isAllowedOrigin = (origin?: string | null): origin is string => {
