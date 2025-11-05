@@ -7,6 +7,7 @@ import {
 } from './auth-service';
 import { setAuthCookies } from './auth-helper';
 import { jwtCookieOptions } from '../../shared/helper';
+import { buildGoogleAuthUrl, verifyOAuthState, isAllowedOrigin } from '../../loaders/googleOAuth';
 
 export const googleOauth = catchAsync(async (req: Request, res: Response) => {
   const response = await handleGoogleOauth(req.body);
@@ -27,6 +28,43 @@ export const googleOauth = catchAsync(async (req: Request, res: Response) => {
     message: 'Google oauth successful',
     data: responseData,
   });
+});
+
+export const initiateGoogleAuth = catchAsync(async (req: Request, res: Response) => {
+  const headerOrigin = (req.headers.origin as string | undefined) || undefined;
+  const queryOrigin = (req.query.origin as string | undefined) || undefined;
+  const chosenOrigin = queryOrigin || headerOrigin || '';
+
+  if (!isAllowedOrigin(chosenOrigin)) {
+    return res.status(httpStatus.BAD_REQUEST).json({
+      success: false,
+      message: 'Origin not allowed',
+    });
+  }
+
+  const authUrl = buildGoogleAuthUrl(chosenOrigin);
+  res.redirect(authUrl);
+});
+
+export const googleOAuthCallback = catchAsync(async (req: Request, res: Response) => {
+  const code = req.query.code as string | undefined;
+  const state = req.query.state as string | undefined;
+
+  if (!code || !state) {
+    return res.status(httpStatus.BAD_REQUEST).json({
+      success: false,
+      message: 'Missing code or state',
+    });
+  }
+
+  const { origin } = verifyOAuthState(state);
+
+  const response = await handleGoogleOauth({ isVerify: false, code, credential: '' });
+
+  setAuthCookies(res, response, origin);
+
+  const redirectUrl = `${origin}/auth/callback`;
+  res.redirect(302, redirectUrl);
 });
 
 
