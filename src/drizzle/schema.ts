@@ -28,6 +28,7 @@ export const dataSourceType = pgEnum('DataSourceType', [
 
 
 export const dataSourceStatus = pgEnum('DataSourceStatus', [
+  'DRAFT',
   'QUEUEING',
   'PROCESSING',
   'COMPLETED',
@@ -36,6 +37,7 @@ export const dataSourceStatus = pgEnum('DataSourceStatus', [
 
 
 export const chatbotStatus = pgEnum('ChatbotStatus', [
+  'DRAFT',
   'TRAINING',
   'ACTIVE',
   'INACTIVE',
@@ -118,7 +120,9 @@ export const chatBots = pgTable('chatbot', {
   name: varchar('name').notNull(),
   description: text('description').notNull(),
   systemPrompt: text('system_prompt').notNull(),
-  status: chatbotStatus().default('INACTIVE').notNull(), 
+  logoUrl: text('logo_url').default(''),
+  primaryColor: varchar('primary_color', { length: 7 }).notNull().default('#007bff'), // default blue
+  status: chatbotStatus().default('INACTIVE').notNull(),
   createdAt: timestamp('created_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
   apiKey: varchar('api_key', { length: 255 }),
@@ -355,6 +359,7 @@ export interface WidgetStyles {
   alignChatButton: Align;  // maps to buttonAlignment in frontend
   showButtonText: boolean;  // NEW
   buttonText: string;  // NEW: text shown on widget button
+  widgetButtonText: string;  // NEW: alternate button text
   
   // Messages & Placeholders
   messagePlaceholder: string;
@@ -398,6 +403,11 @@ export const widgetConfig = pgTable(
     initialMessage: text('initial_message').notNull(),
 
     suggestedMessages: text('suggested_messages')
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
+    
+    allowedDomains: text('allowed_domains')
       .array()
       .notNull()
       .default(sql`ARRAY[]::text[]`),

@@ -30,6 +30,25 @@ export const processDatasource = catchAsync(
   }
 );
 
+
+export const fetchSitemap = catchAsync(
+  async (req: jwtReq, res: Response, next: NextFunction) => {
+
+    const chatbot = await handleProcessDatasource(
+      req.user.userId as string,
+      req.body.websiteUrl,
+      req.body.useCase
+    );
+
+    res.status(httpStatus.CREATED).json({
+      success: true,
+      message: 'Datasource Processing Started',
+      data: chatbot,
+    });
+  }
+);
+
+
 export const deleteKnowledge = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
     const { chatbotId, datasourceId } = req.body;

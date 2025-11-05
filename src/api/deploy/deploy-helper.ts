@@ -58,7 +58,7 @@ export const defaultDbStyles: DbWidgetStyles = {
     alignChatButton: 'right',
     showButtonText: true,
     buttonText: 'Chat with us',
-    
+    widgetButtonText: 'Chat with us',
     // Messages & Placeholders
     messagePlaceholder: 'Type your message here...',
     footerText: 'Powered by <strong>AI</strong>',

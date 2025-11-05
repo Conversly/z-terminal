@@ -51,7 +51,7 @@ export default ({ app }: { app: express.Application }): void => {
 
   app.get('/', (req, res) => {
     return res.send(
-      "What are you doing here? 🧐 Go to <a href='https://trench.ag/'>Magic Link!!</a>"
+      "What are you doing here? 🧐 Go to <a href='https://dev.verlyai.xyz/'>Magic Link!!</a>"
     );
   });
 

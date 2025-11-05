@@ -108,3 +108,8 @@ export const ingestionRequestSchema = yup.object().shape({
   qandaData: yup.array().of(qaPairWithIdSchema).optional(),
   textContent: yup.array().of(textContentWithIdSchema).optional(),
 });
+
+export const fetchSitemapRequestSchema = yup.object().shape({
+  websiteUrl : yup.string().url('Invalid URL format').required('Website URL is required'),
+  useCase: yup.string().default('Ai-Assistant').optional(),
+});

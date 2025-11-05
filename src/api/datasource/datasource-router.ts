@@ -6,6 +6,7 @@ import {
   fetchDataSources,
   addCitation,
   fetchEmbeddings,
+  fetchSitemap,
 } from './datasource-controller';
 import {
   processRequestSchema,
@@ -13,11 +14,14 @@ import {
   fetchDataSourcesSchema,
   addCitationSchema,
   fetchEmbeddingsSchema,
+  fetchSitemapRequestSchema
 } from './datasource-schema';
 
 const app = express.Router();
 
 app.post('/process', auth, validate('body', processRequestSchema), processDatasource);
+
+app.post('/sitemap', auth, validate('body', fetchSitemapRequestSchema), fetchSitemap);
 
 app.delete('/knowledge', auth, validate('body', deleteKnowledgeSchema), deleteKnowledge);
 
