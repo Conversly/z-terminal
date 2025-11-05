@@ -2,6 +2,8 @@ import httpStatus from 'http-status';
 import ApiError from '../../utils/apiError';
 import logger from '../../loaders/logger';
 import { db } from '../../loaders/postgres';
+import axios from 'axios';
+import env from '../../config';
 import {
   chatBots as chatBotsTable,
   dataSources as dataSourcesTable,
@@ -114,6 +116,63 @@ export const handleProcessDatasource = async (
       .returning({ 
         id: dataSourcesTable.id
       });
+
+    // Build ingestion payload mapping returned datasource IDs back to inputs
+    const ids = insertedDatasources.map((ds) => ds.id);
+
+    let currentIndex = 0;
+
+    const websiteUrlsPayload = (WebsiteURLs && WebsiteURLs.length > 0)
+      ? WebsiteURLs.map((url) => ({ datasourceId: ids[currentIndex++], url }))
+      : undefined;
+
+    const documentsPayload = (Documents && Documents.length > 0)
+      ? Documents.map((doc) => ({
+          datasourceId: ids[currentIndex++],
+          url: doc.url,
+          downloadUrl: doc.downloadUrl,
+          pathname: doc.pathname,
+          contentType: doc.contentType,
+          contentDisposition: doc.contentDisposition,
+        }))
+      : undefined;
+
+    const qandaPayload = (QandAData && QandAData.length > 0)
+      ? QandAData.map((qna) => ({
+          datasourceId: ids[currentIndex++],
+          question: qna.question,
+          answer: qna.answer,
+          citations: qna.citations || '',
+        }))
+      : undefined;
+
+    const textContentPayload = (TextContent && TextContent.length > 0)
+      ? TextContent.map((content) => ({ datasourceId: ids[currentIndex++], content }))
+      : undefined;
+
+    const ingestionBody: any = {
+      userId,
+      chatbotId, // keep as string per ingestion contract
+      options: {},
+    };
+
+    if (websiteUrlsPayload && websiteUrlsPayload.length > 0) {
+      (ingestionBody as any).websiteUrls = websiteUrlsPayload;
+    }
+    if (qandaPayload && qandaPayload.length > 0) {
+      (ingestionBody as any).qandaData = qandaPayload;
+    }
+    if (documentsPayload && documentsPayload.length > 0) {
+      (ingestionBody as any).documents = documentsPayload;
+    }
+    if (textContentPayload && textContentPayload.length > 0) {
+      (ingestionBody as any).textContent = textContentPayload;
+    }
+
+    const ingestionUrl = `${env.INGESTION_API}/api/v1/process`;
+    await axios.post(ingestionUrl, ingestionBody, {
+      headers: { 'Content-Type': 'application/json' },
+    });
 
     return {
       success: true,
