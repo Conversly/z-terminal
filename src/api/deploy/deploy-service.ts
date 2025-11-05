@@ -50,10 +50,21 @@ export const handleGetWidget = async (
 		.then((r) => r[0]);
 
 	if (!row) {
-		// If no config exists, create it with defaults
+		const defaultStyles = {
+			...defaultDbStyles,
+			...(typeof chatbot.name === 'string' && chatbot.name.trim() !== ''
+				? { displayName: chatbot.name }
+				: {}),
+			...(typeof chatbot.primaryColor === 'string' && chatbot.primaryColor.trim() !== ''
+				? { primaryColor: chatbot.primaryColor, widgetBubbleColour: chatbot.primaryColor }
+				: {}),
+			...(typeof chatbot.logoUrl === 'string' && chatbot.logoUrl.trim() !== ''
+				? { PrimaryIcon: chatbot.logoUrl, widgeticon: chatbot.logoUrl }
+				: {}),
+		};
 		const defaultValues = {
 			chatbotId: chatbotId,
-			styles: defaultDbStyles,
+			styles: defaultStyles, 
 			onlyAllowOnAddedDomains: false,
 			initialMessage: 'Hi there! 👋 How can I help you today?',
 			suggestedMessages: [
@@ -72,12 +83,25 @@ export const handleGetWidget = async (
 			.returning();
 	}
 
+	const customization = fromDbToCustomization(row);
+
+	if (typeof chatbot.name === 'string' && chatbot.name.trim() !== '') {
+		customization.styles.displayName = chatbot.name;
+	}
+	if (typeof chatbot.primaryColor === 'string' && chatbot.primaryColor.trim() !== '') {
+		customization.styles.primaryColor = chatbot.primaryColor;
+		customization.styles.widgetBubbleColour = chatbot.primaryColor;
+	}
+	if (typeof chatbot.logoUrl === 'string' && chatbot.logoUrl.trim() !== '') {
+		customization.styles.PrimaryIcon = chatbot.logoUrl;
+		customization.styles.widgeticon = chatbot.logoUrl;
+	}
+
 	return {
 		chatbotId: String(chatbotId),
-		partial: fromDbToCustomization(row),
+		partial: customization,
 	};
 };
-
 
 // External version does not verify ownership
 // Returns widget config with API key and unique client ID

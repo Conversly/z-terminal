@@ -74,9 +74,6 @@ export const defaultDbStyles: DbWidgetStyles = {
     collectUserFeedback: true,
     regenerateMessages: true,
     continueShowingSuggestedMessages: true,
-    
-    // REMOVED: hiddenPaths
-    // REMOVED: userMessageColor (now using primaryColor)
 };
 
 // please do not remove comments from widget config. mai confuse ho jata hun
