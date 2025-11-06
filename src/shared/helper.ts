@@ -91,31 +91,6 @@ export const roundToDecimals = (value: number, decimals: number): number => {
   return Math.round(value * factor) / factor;
 };
 
-export const parseMarketCap = (mcap: string | null): number => {
-  if (!mcap || typeof mcap !== 'string') return 0;
-
-  const trimmed = mcap.trim().toUpperCase();
-  const lastChar = trimmed.slice(-1);
-
-  if (!['K', 'M', 'B'].includes(lastChar)) {
-    return Number(trimmed) || 0;
-  }
-
-  const numericPart = trimmed.slice(0, -1);
-  const number = Number(numericPart);
-  if (isNaN(number)) return 0;
-
-  switch (lastChar) {
-    case 'K':
-      return number * 1_000;
-    case 'M':
-      return number * 1_000_000;
-    case 'B':
-      return number * 1_000_000_000;
-    default:
-      return number;
-  }
-};
 
 /**
  * Converts various timestamp formats to Unix timestamp in seconds

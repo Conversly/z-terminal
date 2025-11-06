@@ -11,7 +11,7 @@ import {
   subscribedUsers,
   widgetConfig,
   originDomains,
-} from './schema';
+} from './schema.js';
 
 export const usersRelations = relations(user, ({ many }) => ({
   subscribedUsers: many(subscribedUsers),

@@ -15,3 +15,49 @@ export interface GetAnalyticsResponse {
   success: boolean;
   data: AnalyticsData;
 }
+
+export interface SummaryMetricsData {
+  totalMessagesThisMonth: number;
+  avgMessagesPerConversation: number;
+  likeRatePercent: number;
+  activeConversationsToday: number;
+}
+
+export interface GetSummaryResponse {
+  success: boolean;
+  data: SummaryMetricsData;
+}
+
+export interface ChartsDataPoint {
+  date: string; // ISO date (YYYY-MM-DD)
+  count: number;
+}
+
+export interface FeedbackDistributionData {
+  likes: number;
+  dislikes: number;
+  none: number;
+}
+
+export interface ChartsData {
+  messagesPerDay: ChartsDataPoint[];
+  conversationsPerDay: ChartsDataPoint[];
+  feedbackDistribution: FeedbackDistributionData;
+}
+
+export interface GetChartsResponse {
+  success: boolean;
+  data: ChartsData;
+}
+
+export interface FeedbackItem {
+  content: string;
+  feedback: 'like' | 'dislike';
+  feedbackComment: string | null;
+  createdAt: Date;
+}
+
+export interface GetFeedbacksResponse {
+  success: boolean;
+  data: FeedbackItem[];
+}

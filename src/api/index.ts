@@ -6,6 +6,7 @@ import datasourceRouter from './datasource/datasource-router';
 import analyticsRouter from './analytics/analytics-router';
 import deployRouter from './deploy/deploy-router';
 import setupRouter from './setup/setup-router';
+import activityRouter from './activity/activity-router';
 
 
 const routes = [
@@ -16,6 +17,7 @@ const routes = [
   { path: '/analytics', router: analyticsRouter },
   { path: '/deploy', router: deployRouter },
   { path: '/setup', router: setupRouter },
+  { path: '/activity', router: activityRouter },
 ];
 
 export default (): Router => {
