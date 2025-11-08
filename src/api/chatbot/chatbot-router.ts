@@ -61,7 +61,7 @@ app.delete(
 );
 
 app.get(
-  '/topics',
+  '/topics/list',
   auth,
   validate('query', getChatbotSchema),
   getTopic
