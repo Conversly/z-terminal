@@ -411,22 +411,12 @@ export const handleDeleteTopic = async (
 export const handleGetTopic = async (
   userId: string,
   id: number
-): Promise<TopicResponse> => {
+): Promise<TopicResponse[]> => {
   try {
-    const [topicRow] = await db
-      .select()
-      .from(chatbotTopicsTable)
-      .where(eq(chatbotTopicsTable.id, id))
-      .limit(1);
-
-    if (!topicRow) {
-      throw new ApiError('Topic not found', httpStatus.NOT_FOUND);
-    }
-
     const [chatbot] = await db
       .select()
       .from(chatBotsTable)
-      .where(eq(chatBotsTable.id, topicRow.chatbotId))
+      .where(eq(chatBotsTable.id, id))
       .limit(1);
 
     if (!chatbot) {
@@ -436,18 +426,23 @@ export const handleGetTopic = async (
       throw new ApiError('Unauthorized: You do not own this chatbot', httpStatus.FORBIDDEN);
     }
 
-    return {
-      id: topicRow.id,
-      chatbotId: topicRow.chatbotId,
-      name: topicRow.name,
-      color: topicRow.color,
-      createdAt: topicRow.createdAt,
-    };
+    const topics = await db
+      .select({
+        id: chatbotTopicsTable.id,
+        chatbotId: chatbotTopicsTable.chatbotId,
+        name: chatbotTopicsTable.name,
+        color: chatbotTopicsTable.color,
+        createdAt: chatbotTopicsTable.createdAt,
+      })
+      .from(chatbotTopicsTable)
+      .where(eq(chatbotTopicsTable.chatbotId, id));
+
+    return topics;
   } catch (error) {
     logger.error('Error fetching topic:', error);
     if (error instanceof ApiError) {
       throw error;
     }
-    throw new ApiError('Error fetching topic', httpStatus.INTERNAL_SERVER_ERROR);
+    throw new ApiError('Error fetching topics', httpStatus.INTERNAL_SERVER_ERROR);
   }
 };

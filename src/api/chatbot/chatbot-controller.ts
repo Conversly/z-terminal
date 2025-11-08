@@ -158,14 +158,14 @@ export const deleteTopic = catchAsync(
 
 export const getTopic = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
-    const topic = await handleGetTopic(
+    const topics = await handleGetTopic(
       req.user.userId as string,
-      parseInt(req.params.id)
+      parseInt(req.query.id as string)
     );
 
     res.status(httpStatus.OK).json({
       success: true,
-      data: topic,
+      data: topics,
     });
   }
 );
