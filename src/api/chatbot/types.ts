@@ -43,3 +43,31 @@ export interface DeleteChatbotResponse {
   success: boolean;
   message?: string;
 }
+
+// Topic types
+export interface CreateTopicInput {
+  chatbotId: number;
+  name: string;
+}
+
+export interface TopicResponse {
+  id: number;
+  chatbotId: number;
+  name: string;
+  color: string | null;
+  createdAt: Date | null;
+}
+
+export interface UpdateTopicInput {
+  id: number;
+  name?: string;
+}
+
+export interface DeleteTopicInput {
+  id: number;
+}
+
+export interface DeleteTopicResponse {
+  success: boolean;
+  message?: string;
+}

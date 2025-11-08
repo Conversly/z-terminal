@@ -7,6 +7,9 @@ import {
     getChatbots,
     deleteChatbot,
     getChatbot,
+    createTopic,
+    updateTopic,
+    deleteTopic,
 } from './chatbot-controller';
 import {
   createChatbotSchema,
@@ -14,6 +17,9 @@ import {
   chatbotInstructionsSchema,
   deleteChatbotSchema,
   getChatbotSchema,
+  createTopicSchema,
+  topicIdParamsSchema,
+  updateTopicBodySchema,
 } from './chatbot-schema';
 import { get } from 'http';
 
@@ -30,5 +36,27 @@ app.post('/prompt', auth, validate('body', chatbotInstructionsSchema), updateIns
 app.delete('/:id', auth, validate('params', deleteChatbotSchema), deleteChatbot);
 
 app.get('/:id', auth, validate('params', getChatbotSchema), getChatbot);
+
+// Topic routes
+app.post(
+  '/topics',
+  auth,
+  validate('body', createTopicSchema),
+  createTopic
+);
+
+app.patch(
+  '/topics',
+  auth,
+  validate('body', updateTopicBodySchema),
+  updateTopic
+);
+
+app.delete(
+  '/topics/:id',
+  auth,
+  validate('params', topicIdParamsSchema),
+  deleteTopic
+);
 
 export default app;

@@ -9,8 +9,11 @@ import {
   handleGetChatbots,
   handleDeleteChatbot,
   handleGetChatbot,
+  handleCreateTopic,
+  handleUpdateTopic,
+  handleDeleteTopic,
 } from './chatbot-service';
-import { CreateChatbotInput, GenerateInstructionsInput, DeleteChatbotInput } from './types';
+import { CreateChatbotInput, GenerateInstructionsInput, DeleteChatbotInput, CreateTopicInput, UpdateTopicInput, DeleteTopicInput } from './types';
 
 export const createChatbot = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
@@ -97,6 +100,56 @@ export const getChatbot = catchAsync(
 
     res.status(httpStatus.OK).json({
       success: true,
+      data: result,
+    });
+  }
+);
+
+export const createTopic = catchAsync(
+  async (req: jwtReq, res: Response, next: NextFunction) => {
+    const input: CreateTopicInput = {
+      chatbotId: req.body.chatbotId,
+      name: req.body.name,
+    };
+
+    const topic = await handleCreateTopic(req.user.userId as string, input);
+
+    res.status(httpStatus.CREATED).json({
+      success: true,
+      message: 'Topic created successfully',
+      data: topic,
+    });
+  }
+);
+
+export const updateTopic = catchAsync(
+  async (req: jwtReq, res: Response, next: NextFunction) => {
+    const input: UpdateTopicInput = {
+      id: req.body.id,
+      name: req.body.name,
+    };
+
+    const topic = await handleUpdateTopic(req.user.userId as string, input);
+
+    res.status(httpStatus.OK).json({
+      success: true,
+      message: 'Topic updated successfully',
+      data: topic,
+    });
+  }
+);
+
+export const deleteTopic = catchAsync(
+  async (req: jwtReq, res: Response, next: NextFunction) => {
+    const input: DeleteTopicInput = {
+      id: parseInt(req.params.id),
+    };
+
+    const result = await handleDeleteTopic(req.user.userId as string, input);
+
+    res.status(httpStatus.OK).json({
+      success: true,
+      message: result.message,
       data: result,
     });
   }

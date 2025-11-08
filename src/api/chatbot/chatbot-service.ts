@@ -4,8 +4,9 @@ import logger from '../../loaders/logger';
 import { db } from '../../loaders/postgres';
 import {
   chatBots as chatBotsTable,
+  chatbotTopics as chatbotTopicsTable,
 } from '../../drizzle/schema';
-import { CreateChatbotInput, ChatbotResponse, GenerateInstructionsInput, InstructionResponse, GetChatbotsResponse, DeleteChatbotInput, DeleteChatbotResponse} from './types';
+import { CreateChatbotInput, ChatbotResponse, GenerateInstructionsInput, InstructionResponse, GetChatbotsResponse, DeleteChatbotInput, DeleteChatbotResponse, CreateTopicInput, TopicResponse, UpdateTopicInput, DeleteTopicInput, DeleteTopicResponse} from './types';
 import axios from 'axios';
 import env from '../../config';
 import { eq } from 'drizzle-orm';
@@ -248,5 +249,161 @@ export const handleDeleteChatbot = async (
       throw error;
     }
     throw new ApiError('Error deleting chatbot', httpStatus.INTERNAL_SERVER_ERROR);
+  }
+};
+
+export const handleCreateTopic = async (
+  userId: string,
+  input: CreateTopicInput
+): Promise<TopicResponse> => {
+  try {
+    const palette = [
+      '#007bff', // blue
+      '#28a745', // green
+      '#dc3545', // red
+      '#fd7e14', // orange
+      '#ffc107', // yellow
+      '#6f42c1', // purple
+      '#20c997', // teal
+      '#e83e8c', // pink
+      '#6610f2', // indigo
+      '#17a2b8', // cyan
+    ];
+    const randomColor = palette[Math.floor(Math.random() * palette.length)];
+
+    const [chatbot] = await db
+      .select()
+      .from(chatBotsTable)
+      .where(eq(chatBotsTable.id, input.chatbotId))
+      .limit(1);
+
+    if (!chatbot) {
+      throw new ApiError('Chatbot not found', httpStatus.NOT_FOUND);
+    }
+    if (chatbot.userId !== userId) {
+      throw new ApiError('Unauthorized: You do not own this chatbot', httpStatus.FORBIDDEN);
+    }
+
+    const [inserted] = await db
+      .insert(chatbotTopicsTable)
+      .values({
+        chatbotId: input.chatbotId,
+        name: input.name,
+        color: randomColor,
+        createdAt: new Date(),
+      })
+      .returning({
+        id: chatbotTopicsTable.id,
+        chatbotId: chatbotTopicsTable.chatbotId,
+        name: chatbotTopicsTable.name,
+        color: chatbotTopicsTable.color,
+        createdAt: chatbotTopicsTable.createdAt,
+      });
+
+    return inserted;
+  } catch (error) {
+    logger.error('Error creating topic:', error);
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError('Error creating topic', httpStatus.INTERNAL_SERVER_ERROR);
+  }
+};
+
+export const handleUpdateTopic = async (
+  userId: string,
+  input: UpdateTopicInput
+): Promise<TopicResponse> => {
+  try {
+    const [topic] = await db
+      .select()
+      .from(chatbotTopicsTable)
+      .where(eq(chatbotTopicsTable.id, input.id))
+      .limit(1);
+
+    if (!topic) {
+      throw new ApiError('Topic not found', httpStatus.NOT_FOUND);
+    }
+
+    const [chatbot] = await db
+      .select()
+      .from(chatBotsTable)
+      .where(eq(chatBotsTable.id, topic.chatbotId))
+      .limit(1);
+
+    if (!chatbot) {
+      throw new ApiError('Chatbot not found', httpStatus.NOT_FOUND);
+    }
+    if (chatbot.userId !== userId) {
+      throw new ApiError('Unauthorized: You do not own this chatbot', httpStatus.FORBIDDEN);
+    }
+
+    const updates: Record<string, any> = {};
+    if (typeof input.name === 'string') updates.name = input.name;
+
+    const [updated] = await db
+      .update(chatbotTopicsTable)
+      .set(updates)
+      .where(eq(chatbotTopicsTable.id, input.id))
+      .returning({
+        id: chatbotTopicsTable.id,
+        chatbotId: chatbotTopicsTable.chatbotId,
+        name: chatbotTopicsTable.name,
+        color: chatbotTopicsTable.color,
+        createdAt: chatbotTopicsTable.createdAt,
+      });
+
+    return updated;
+  } catch (error) {
+    logger.error('Error updating topic:', error);
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError('Error updating topic', httpStatus.INTERNAL_SERVER_ERROR);
+  }
+};
+
+export const handleDeleteTopic = async (
+  userId: string,
+  input: DeleteTopicInput
+): Promise<DeleteTopicResponse> => {
+  try {
+    const [topic] = await db
+      .select()
+      .from(chatbotTopicsTable)
+      .where(eq(chatbotTopicsTable.id, input.id))
+      .limit(1);
+
+    if (!topic) {
+      throw new ApiError('Topic not found', httpStatus.NOT_FOUND);
+    }
+
+    const [chatbot] = await db
+      .select()
+      .from(chatBotsTable)
+      .where(eq(chatBotsTable.id, topic.chatbotId))
+      .limit(1);
+
+    if (!chatbot) {
+      throw new ApiError('Chatbot not found', httpStatus.NOT_FOUND);
+    }
+    if (chatbot.userId !== userId) {
+      throw new ApiError('Unauthorized: You do not own this chatbot', httpStatus.FORBIDDEN);
+    }
+
+    await db
+      .delete(chatbotTopicsTable)
+      .where(eq(chatbotTopicsTable.id, input.id));
+
+    return {
+      success: true,
+      message: 'Topic deleted successfully',
+    };
+  } catch (error) {
+    logger.error('Error deleting topic:', error);
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError('Error deleting topic', httpStatus.INTERNAL_SERVER_ERROR);
   }
 };
