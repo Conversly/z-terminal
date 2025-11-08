@@ -13,8 +13,10 @@ import {
   GetSummaryResponse,
   GetChartsResponse,
   GetFeedbacksResponse,
+  GetTopicBarChartResponse,
+  GetTopicPieChartResponse,
 } from './types';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, inArray, desc } from 'drizzle-orm';
 import { verifyChatbotOwnership } from '../../shared/helper-queries';
 
 export const handleGetAnalytics = async (
@@ -253,13 +255,198 @@ export const handleGetFeedbacks = async (
   try {
     const chatbot = await verifyChatbotOwnership(chatbotId, userId);
 
-    // Feedback fields (feedback, feedback_comment) not present in messages schema currently.
-    // Return empty list as placeholder to avoid breaking API; when fields are added,
-    // update this query accordingly.
-    return { success: true, data: [] };
+    const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(limit, 50) : 5;
+
+    const rows = await db
+      .select({
+        content: messagesTable.content,
+        feedback: messagesTable.feedback,
+        feedbackComment: messagesTable.feedbackComment,
+        createdAt: messagesTable.createdAt,
+      })
+      .from(messagesTable)
+      .where(
+        and(
+          eq(messagesTable.chatbotId, chatbotId),
+          inArray(messagesTable.feedback, [1, 2]) // 1=like, 2=dislike
+        )
+      )
+      .orderBy(desc(messagesTable.createdAt))
+      .limit(safeLimit);
+
+    const data = rows.map((r) => ({
+      content: r.content,
+      feedback: r.feedback === 1 ? 'like' as const : 'dislike' as const,
+      feedbackComment: r.feedbackComment ?? null,
+      createdAt: r.createdAt as Date,
+    }));
+
+    return { success: true, data };
   } catch (error) {
     if (error instanceof ApiError) throw error;
     logger.error('Error fetching recent feedbacks:', error);
     throw new ApiError('Error fetching recent feedbacks', httpStatus.INTERNAL_SERVER_ERROR);
+  }
+};
+
+export const handleGetTopicBarChart = async (
+  userId: string,
+  chatbotId: number,
+  days: number
+): Promise<GetTopicBarChartResponse> => {
+  try {
+    const chatbot = await verifyChatbotOwnership(chatbotId, userId);
+
+    const startDateSql = sql`(CURRENT_DATE - (${days - 1})::int)`;
+    const endDateSql = sql`CURRENT_DATE`;
+
+    const rowsRes = await db.execute(sql<{
+      topic_id: number;
+      topic_name: string;
+      topic_color: string | null;
+      date: string;
+      messages: number;
+      likes: number;
+      dislikes: number;
+    }>`
+      WITH dates AS (
+        SELECT generate_series(${startDateSql}, ${endDateSql}, '1 day'::interval)::date AS date
+      ),
+      topics AS (
+        SELECT id, name, color
+        FROM chatbot_topics
+        WHERE chatbot_id = ${chatbotId}
+      )
+      SELECT
+        t.id AS topic_id,
+        t.name AS topic_name,
+        t.color AS topic_color,
+        to_char(d.date, 'YYYY-MM-DD') AS date,
+        COALESCE(s.message_count, 0)::int AS messages,
+        COALESCE(s.like_count, 0)::int AS likes,
+        COALESCE(s.dislike_count, 0)::int AS dislikes
+      FROM topics t
+      CROSS JOIN dates d
+      LEFT JOIN chatbot_topic_stats s
+        ON s.chatbot_id = ${chatbotId}
+       AND s.topic_id = t.id
+       AND s.date = d.date
+      ORDER BY t.id, d.date
+    `);
+
+    const rows = (rowsRes as any).rows as Array<{
+      topic_id: number;
+      topic_name: string;
+      topic_color: string | null;
+      date: string;
+      messages: number;
+      likes: number;
+      dislikes: number;
+    }>;
+
+    const topicsMap = new Map<number, { topicId: number; topicName: string; color: string | null; series: Array<{ date: string; messages: number; likes: number; dislikes: number }> }>();
+    for (const r of rows) {
+      if (!topicsMap.has(r.topic_id)) {
+        topicsMap.set(r.topic_id, { topicId: r.topic_id, topicName: r.topic_name, color: r.topic_color, series: [] });
+      }
+      topicsMap.get(r.topic_id)!.series.push({
+        date: r.date,
+        messages: Number(r.messages) || 0,
+        likes: Number(r.likes) || 0,
+        dislikes: Number(r.dislikes) || 0,
+      });
+    }
+
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - (days - 1));
+
+    return {
+      success: true,
+      data: {
+        topics: Array.from(topicsMap.values()),
+        dateRange: {
+          startDate: startDate.toISOString().slice(0, 10),
+          endDate: endDate.toISOString().slice(0, 10),
+        },
+      },
+    };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    logger.error('Error fetching topic bar chart:', error);
+    throw new ApiError('Error fetching topic bar chart', httpStatus.INTERNAL_SERVER_ERROR);
+  }
+};
+
+export const handleGetTopicPieChart = async (
+  userId: string,
+  chatbotId: number,
+  days: number
+): Promise<GetTopicPieChartResponse> => {
+  try {
+    const chatbot = await verifyChatbotOwnership(chatbotId, userId);
+
+    const startDateSql = sql`(CURRENT_DATE - (${days - 1})::int)`;
+    const endDateSql = sql`CURRENT_DATE`;
+
+    const rowsRes = await db.execute(sql<{
+      topic_id: number;
+      topic_name: string;
+      topic_color: string | null;
+      messages: number;
+      likes: number;
+      dislikes: number;
+    }>`
+      SELECT
+        t.id AS topic_id,
+        t.name AS topic_name,
+        t.color AS topic_color,
+        COALESCE(SUM(s.message_count), 0)::int AS messages,
+        COALESCE(SUM(s.like_count), 0)::int AS likes,
+        COALESCE(SUM(s.dislike_count), 0)::int AS dislikes
+      FROM chatbot_topics t
+      LEFT JOIN chatbot_topic_stats s
+        ON s.chatbot_id = ${chatbotId}
+       AND s.topic_id = t.id
+       AND s.date BETWEEN ${startDateSql} AND ${endDateSql}
+      WHERE t.chatbot_id = ${chatbotId}
+      GROUP BY t.id, t.name, t.color
+      ORDER BY t.name
+    `);
+
+    const rows = (rowsRes as any).rows as Array<{
+      topic_id: number;
+      topic_name: string;
+      topic_color: string | null;
+      messages: number;
+      likes: number;
+      dislikes: number;
+    }>;
+
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - (days - 1));
+
+    return {
+      success: true,
+      data: {
+        topics: rows.map(r => ({
+          topicId: r.topic_id,
+          topicName: r.topic_name,
+          color: r.topic_color,
+          messages: Number(r.messages) || 0,
+          likes: Number(r.likes) || 0,
+          dislikes: Number(r.dislikes) || 0,
+        })),
+        dateRange: {
+          startDate: startDate.toISOString().slice(0, 10),
+          endDate: endDate.toISOString().slice(0, 10),
+        },
+      },
+    };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    logger.error('Error fetching topic pie chart:', error);
+    throw new ApiError('Error fetching topic pie chart', httpStatus.INTERNAL_SERVER_ERROR);
   }
 };

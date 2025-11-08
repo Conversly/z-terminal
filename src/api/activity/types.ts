@@ -13,7 +13,7 @@ export interface GetChatlogsResponse {
 export type MessageType = 'user' | 'assistant';
 
 export interface MessageItem {
-  id: number;
+  id: string;
   type: MessageType;
   content: string;
   createdAt: Date;

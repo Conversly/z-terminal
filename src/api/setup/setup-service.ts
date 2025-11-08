@@ -3,13 +3,14 @@ import httpStatus from 'http-status';
 import ApiError from '../../utils/apiError';
 import logger from '../../loaders/logger';
 import { db } from '../../loaders/postgres';
-import { chatBots as chatBotsTable, dataSources as dataSourcesTable } from '../../drizzle/schema';
+import { chatBots as chatBotsTable, dataSources as dataSourcesTable, chatbotTopics as chatbotTopicsTable } from '../../drizzle/schema';
 import { eq } from 'drizzle-orm';
 import {
   fetchAndConvertToMarkdown,
   getPrimaryColorFromImage,
   detectLogoUrl,
   inferBrandFromMarkdown,
+  generateTopicsFromContent,
 } from './setup-helper';
 
 import { saveDatasources, discoverWebsiteUrls, buildPublicDocuments } from './search-sources-helper';
@@ -136,5 +137,59 @@ export const handleSearchSources = async (
     if (error instanceof ApiError) throw error;
     logger.error('Error searching sources:', error);
     throw new ApiError('Error searching sources', httpStatus.INTERNAL_SERVER_ERROR);
+  }
+};
+
+export const handleGenerateTopics = async (
+  userId: string,
+  chatbotId: string,
+  websiteUrl: string,
+  useCase?: string
+): Promise<{ chatbotId: string; topics: { id: number; name: string; color: string }[] }> => {
+  try {
+    const markdownRaw = await fetchAndConvertToMarkdown(websiteUrl);
+    const markdown = markdownRaw.slice(0, 15000);
+    const topicNames = await generateTopicsFromContent(websiteUrl, markdown, useCase);
+
+    if (!topicNames || topicNames.length === 0) {
+      throw new ApiError('No topics generated', httpStatus.BAD_REQUEST);
+    }
+
+    const palette = [
+      '#007bff', // blue
+      '#28a745', // green
+      '#dc3545', // red
+      '#fd7e14', // orange
+      '#ffc107', // yellow
+      '#6f42c1', // purple
+      '#20c997', // teal
+      '#e83e8c', // pink
+      '#6610f2', // indigo
+      '#17a2b8', // cyan
+    ];
+
+    const parsedChatbotId = parseInt(chatbotId);
+    // Optional: ensure chatbot exists
+    const [bot] = await db.select().from(chatBotsTable).where(eq(chatBotsTable.id, parsedChatbotId)).limit(1);
+    if (!bot) throw new ApiError('Chatbot not found', httpStatus.NOT_FOUND);
+
+    const values = topicNames.map((name) => ({
+      chatbotId: parsedChatbotId,
+      name,
+      color: palette[Math.floor(Math.random() * palette.length)],
+      createdAt: new Date(),
+    }));
+
+    const inserted = await db.insert(chatbotTopicsTable).values(values).returning({
+      id: chatbotTopicsTable.id,
+      name: chatbotTopicsTable.name,
+      color: chatbotTopicsTable.color,
+    });
+
+    return { chatbotId, topics: inserted.map(t => ({ id: t.id, name: t.name, color: t.color || '#888888' })) };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    logger.error('Error generating topics:', error);
+    throw new ApiError('Error generating topics', httpStatus.INTERNAL_SERVER_ERROR);
   }
 };

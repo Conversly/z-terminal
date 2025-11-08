@@ -1,5 +1,5 @@
-import { pgTable, serial, text, timestamp, varchar, integer, smallint, boolean, json, decimal, index, uniqueIndex, uuid,foreignKey, unique, real, pgEnum, customType } from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
+import { pgTable, serial, text, timestamp, varchar, integer, smallint, boolean, json, decimal, index, uniqueIndex, uuid,foreignKey, unique, real, pgEnum, customType, primaryKey , date} from 'drizzle-orm/pg-core';
+import { like, sql } from 'drizzle-orm';
 
 const vector = customType<{ data: number[] }>({
   dataType() {
@@ -133,6 +133,7 @@ export const chatBots = pgTable('chatbot', {
   systemPrompt: text('system_prompt').notNull(),
   logoUrl: text('logo_url').default(''),
   primaryColor: varchar('primary_color', { length: 7 }).notNull().default('#007bff'), // default blue
+  topics: text('topics').array().notNull().default(sql`ARRAY[]::text[]`),
   status: chatbotStatus().default('INACTIVE').notNull(),
   createdAt: timestamp('created_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
@@ -322,33 +323,30 @@ export const subscribedUsers = pgTable('subscribed_users', {
     .onDelete('restrict'),
 ]);
 
-export const messages = pgTable('messages', {
-  id: uuid('id').primaryKey(),
-  chatbotId: integer('chatbot_id').notNull(),
-  citations: text('citations').array().notNull(),
+export const messages = pgTable("messages", {
+  id: uuid("id").primaryKey(),
+  chatbotId: integer("chatbot_id").notNull(),
+  topicId: integer("topic_id").references(() => chatbotTopics.id),
+  citations: text("citations").array().notNull().default(sql`ARRAY[]::text[]`),
   type: messageType().notNull(),
-  content: text('content').notNull(),
-  createdAt: timestamp('created_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
-  uniqueConvId: varchar('unique_conv_id', { length: 255 }).notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  uniqueConvId: varchar("unique_conv_id", { length: 255 }).notNull(),
 
-    // 🆕 Feedback system
-  feedback: smallint('feedback').default(0).notNull(), // 0=none, 1=like, 2=dislike, 3=neutral
-  feedbackComment: text('feedback_comment'), // optional free-text user feedback
+  feedback: smallint("feedback").default(0).notNull(), // 0=none, 1=like, 2=dislike, 3=neutral
+  feedbackComment: text("feedback_comment"),
 }, (table) => [
-
-  index('messages_chatbot_id_idx').using('btree', table.chatbotId.asc().nullsLast()),
-  index('messages_unique_conv_id_idx').using('btree', table.uniqueConvId.asc().nullsLast()),
-  index('messages_chatbot_id_created_at_idx').on(table.chatbotId, table.createdAt),
-  index('messages_chatbot_id_unique_conv_id_created_at_idx').on(table.chatbotId, table.uniqueConvId, table.createdAt),
-
-
   foreignKey({
     columns: [table.chatbotId],
     foreignColumns: [chatBots.id],
-    name: 'messages_chatbot_id_fkey',
+    name: "messages_chatbot_id_fkey",
   })
-    .onUpdate('cascade')
-    .onDelete('cascade'),
+    .onUpdate("cascade")
+    .onDelete("cascade"),
+
+  index("messages_chatbot_id_created_at_idx").on(table.chatbotId, table.createdAt.desc()),
+  index("messages_chatbot_id_topic_id_created_at_idx").on(table.chatbotId, table.topicId, table.createdAt.desc()),
+  index("messages_chatbot_id_unique_conv_id_created_at_idx").on(table.chatbotId, table.uniqueConvId, table.createdAt),
 ]);
 
 
@@ -368,7 +366,7 @@ export interface WidgetStyles {
   
   // Colors
   primaryColor: string;  // replaces headerColor, buttonColor
-  bubbleBubbleColour: string;  // NEW: for message bubbles
+  widgetBubbleColour: string;  // NEW: for message bubbles
   
   // Icons & Assets
   PrimaryIcon: string;  // renamed from profilePictureFile
@@ -439,3 +437,33 @@ export const widgetConfig = pgTable(
     index('widget_config_chatbot_id_idx').using('btree', table.chatbotId.asc().nullsLast()),
   ]
 );
+
+export const chatbotTopics = pgTable('chatbot_topics', {
+  id: serial('id').primaryKey(),
+  chatbotId: integer('chatbot_id').notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  color: varchar('color', { length: 7 }).default('#888888'),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => [
+  index('chatbot_topics_chatbot_id_idx').on(table.chatbotId),
+]);
+
+export const chatbotTopicStats = pgTable("chatbot_topic_stats", {
+  id: serial("id").primaryKey(),
+  chatbotId: integer("chatbot_id").notNull(),
+  topicId: integer("topic_id").notNull(),
+  likeCount: integer("like_count").default(0).notNull(),
+  dislikeCount: integer("dislike_count").default(0).notNull(),
+  messageCount: integer("message_count").default(0).notNull(),
+  date: date("date").notNull().default(sql`CURRENT_DATE`),
+}, (table) => [
+  foreignKey({ columns: [table.chatbotId], foreignColumns: [chatBots.id] })
+    .onUpdate("cascade")
+    .onDelete("cascade"),
+  foreignKey({ columns: [table.topicId], foreignColumns: [chatbotTopics.id] })
+    .onUpdate("cascade")
+    .onDelete("cascade"),
+  unique("chatbot_topic_date_unique").on(table.chatbotId, table.topicId, table.date),
+  index("chatbot_topic_stats_chatbot_date_idx").on(table.chatbotId, table.date.desc()),
+  index("chatbot_topic_stats_chatbot_topic_date_idx").on(table.chatbotId, table.topicId, table.date.desc()),
+]);

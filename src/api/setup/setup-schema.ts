@@ -16,3 +16,9 @@ export const inferPromptRequestSchema = yup.object().shape({
   websiteUrl: yup.string().url('Invalid URL format').required('Website URL is required'),
   useCase: yup.string().default('Ai-Assistant').optional(),
 });
+
+export const generateTopicsRequestSchema = yup.object().shape({
+  chatbotId: yup.string().required('Chatbot ID is required'),
+  websiteUrl: yup.string().url('Invalid URL format').required('Website URL is required'),
+  useCase: yup.string().default('Ai-Assistant').optional(),
+});

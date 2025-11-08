@@ -6,6 +6,7 @@ import {
   handleAnalyzeImage,
   handleInferPrompt,
   handleSearchSources,
+  handleGenerateTopics,
 } from './setup-service';
 
 
@@ -52,5 +53,21 @@ export const searchSources = catchAsync(
     );
 
     res.status(httpStatus.CREATED).json(data);
+  }
+);
+
+export const generateTopics = catchAsync(
+  async (req: jwtReq, res: Response, next: NextFunction) => {
+    const data = await handleGenerateTopics(
+      req.user.userId as string,
+      req.body.chatbotId,
+      req.body.websiteUrl,
+      req.body.useCase,
+    );
+    res.status(httpStatus.OK).json({
+      success: true,
+      message: 'Generated topics',
+      data,
+    });
   }
 );

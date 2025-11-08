@@ -23,11 +23,12 @@ export const getChartsSchema = yup.object().shape({
 });
 
 export const getFeedbacksSchema = yup.object().shape({
-  chatbotId: yup.string()
-    .matches(/^\d+$/, 'Chatbot ID must be a valid number')
+  chatbotId: yup.number()
+    .positive('Chatbot ID must be a positive number')
     .required('Chatbot ID is required'),
   limit: yup.number()
     .min(1)
     .max(50)
     .default(5),
 });
+""

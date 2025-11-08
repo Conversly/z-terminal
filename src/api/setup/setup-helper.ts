@@ -176,3 +176,47 @@ export async function inferBrandFromMarkdown(
 
   return { systemPrompt, name, description, logoUrl };
 }
+
+export async function generateTopicsFromContent(
+  websiteUrl: string,
+  markdown: string,
+  useCase?: string,
+): Promise<string[]> {
+  const systemInstruction = `You create a concise taxonomy of user question topics for a chatbot.
+Return ONLY a strict JSON array of 10 short topic names (strings), each <= 3 words.
+Do not include code fences or any extra text.`;
+  const prompt = `Website: ${websiteUrl}
+Use case: ${useCase || 'AI Assistant'}
+
+Public content (markdown excerpt):
+${markdown}`;
+
+  const response = await axios.post(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+    {
+      system_instruction: { parts: [{ text: systemInstruction }] },
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { response_mime_type: 'application/json' },
+    },
+    { headers: { 'x-goog-api-key': env.GEMINI_API_KEY, 'Content-Type': 'application/json' } }
+  );
+
+  const textOut = response.data?.candidates?.[0]?.content?.parts?.[0]?.text as string | undefined;
+  if (!textOut) {
+    throw new ApiError('Failed to generate topics', httpStatus.INTERNAL_SERVER_ERROR);
+  }
+  let parsed: any;
+  try {
+    parsed = JSON.parse(textOut);
+  } catch {
+    throw new ApiError('Model returned non-JSON output for topics', httpStatus.INTERNAL_SERVER_ERROR);
+  }
+  if (!Array.isArray(parsed)) {
+    throw new ApiError('Model did not return an array of topics', httpStatus.INTERNAL_SERVER_ERROR);
+  }
+  const cleaned = parsed
+    .map((t: any) => (typeof t === 'string' ? t.trim() : ''))
+    .filter((t: string) => t.length > 0)
+    .slice(0, 10);
+  return Array.from(new Set(cleaned));
+}
