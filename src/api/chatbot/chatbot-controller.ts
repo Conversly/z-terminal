@@ -12,6 +12,7 @@ import {
   handleCreateTopic,
   handleUpdateTopic,
   handleDeleteTopic,
+  handleGetTopic,
 } from './chatbot-service';
 import { CreateChatbotInput, GenerateInstructionsInput, DeleteChatbotInput, CreateTopicInput, UpdateTopicInput, DeleteTopicInput } from './types';
 
@@ -151,6 +152,20 @@ export const deleteTopic = catchAsync(
       success: true,
       message: result.message,
       data: result,
+    });
+  }
+);
+
+export const getTopic = catchAsync(
+  async (req: jwtReq, res: Response, next: NextFunction) => {
+    const topic = await handleGetTopic(
+      req.user.userId as string,
+      parseInt(req.params.id)
+    );
+
+    res.status(httpStatus.OK).json({
+      success: true,
+      data: topic,
     });
   }
 );

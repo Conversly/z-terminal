@@ -10,6 +10,7 @@ import {
     createTopic,
     updateTopic,
     deleteTopic,
+    getTopic,
 } from './chatbot-controller';
 import {
   createChatbotSchema,
@@ -57,6 +58,13 @@ app.delete(
   auth,
   validate('params', topicIdParamsSchema),
   deleteTopic
+);
+
+app.get(
+  '/topics/:id',
+  auth,
+  validate('params', topicIdParamsSchema),
+  getTopic
 );
 
 export default app;

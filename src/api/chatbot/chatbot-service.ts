@@ -407,3 +407,47 @@ export const handleDeleteTopic = async (
     throw new ApiError('Error deleting topic', httpStatus.INTERNAL_SERVER_ERROR);
   }
 };
+
+export const handleGetTopic = async (
+  userId: string,
+  id: number
+): Promise<TopicResponse> => {
+  try {
+    const [topicRow] = await db
+      .select()
+      .from(chatbotTopicsTable)
+      .where(eq(chatbotTopicsTable.id, id))
+      .limit(1);
+
+    if (!topicRow) {
+      throw new ApiError('Topic not found', httpStatus.NOT_FOUND);
+    }
+
+    const [chatbot] = await db
+      .select()
+      .from(chatBotsTable)
+      .where(eq(chatBotsTable.id, topicRow.chatbotId))
+      .limit(1);
+
+    if (!chatbot) {
+      throw new ApiError('Chatbot not found', httpStatus.NOT_FOUND);
+    }
+    if (chatbot.userId !== userId) {
+      throw new ApiError('Unauthorized: You do not own this chatbot', httpStatus.FORBIDDEN);
+    }
+
+    return {
+      id: topicRow.id,
+      chatbotId: topicRow.chatbotId,
+      name: topicRow.name,
+      color: topicRow.color,
+      createdAt: topicRow.createdAt,
+    };
+  } catch (error) {
+    logger.error('Error fetching topic:', error);
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError('Error fetching topic', httpStatus.INTERNAL_SERVER_ERROR);
+  }
+};

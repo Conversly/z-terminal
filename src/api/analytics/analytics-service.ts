@@ -178,6 +178,7 @@ export const handleGetFeedbacks = async (
         content: messagesTable.content,
         feedback: messagesTable.feedback,
         feedbackComment: messagesTable.feedbackComment,
+        convId: messagesTable.uniqueConvId,
         createdAt: messagesTable.createdAt,
       })
       .from(messagesTable)
@@ -191,6 +192,7 @@ export const handleGetFeedbacks = async (
       .limit(safeLimit);
 
     const data = rows.map((r) => ({
+      convId: r.convId,
       content: r.content,
       feedback: r.feedback === 1 ? 'like' as const : 'dislike' as const,
       feedbackComment: r.feedbackComment ?? null,

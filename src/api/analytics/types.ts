@@ -51,6 +51,7 @@ export interface GetChartsResponse {
 }
 
 export interface FeedbackItem {
+  convId: string;
   content: string;
   feedback: 'like' | 'dislike';
   feedbackComment: string | null;
