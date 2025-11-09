@@ -160,7 +160,7 @@ export const getTopic = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
     const topics = await handleGetTopic(
       req.user.userId as string,
-      parseInt(req.query.id as string)
+      parseInt(req.params.id)
     );
 
     res.status(httpStatus.OK).json({

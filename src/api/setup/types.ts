@@ -1,3 +1,5 @@
+import { DataSourceItem } from "../datasource/types";
+
 export interface AnalyzeImageInput {
   chatbotId: string;
   imageUrl: string;
@@ -37,7 +39,7 @@ export interface DocumentData {
 
 export interface SearchSourcesResponse {
   success: boolean;
-  data: import('../datasource/types').DataSourceItem[];
+  data: DataSourceItem[];
   totalUrls: number;
   totalPages: number;
   totalFiles: number;
