@@ -24,7 +24,7 @@ export const handleGetChatlogs = async (
         (
           SELECT m2.content
           FROM messages m2
-          WHERE m2.chatbot_id = m.chatbot_id
+          WHERE m2.chatbot_id = ${chatbotId}
             AND m2.unique_conv_id = m.unique_conv_id
             AND m2.type = 'user'
           ORDER BY m2.created_at ASC
