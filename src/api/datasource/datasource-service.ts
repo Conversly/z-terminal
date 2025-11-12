@@ -3,6 +3,7 @@ import ApiError from '../../utils/apiError';
 import logger from '../../loaders/logger';
 import { db } from '../../loaders/postgres';
 import axios from 'axios';
+import https from 'https';
 import env from '../../config';
 import {
   chatBots as chatBotsTable,
@@ -169,9 +170,12 @@ export const handleProcessDatasource = async (
       (ingestionBody as any).textContent = textContentPayload;
     }
 
-    const ingestionUrl = `${env.INGESTION_API}/api/v1/process`;
+    const ingestionUrl = `${env.INGESTION_API}/process`;
     await axios.post(ingestionUrl, ingestionBody, {
       headers: { 'Content-Type': 'application/json' },
+      httpsAgent: new https.Agent({
+        rejectUnauthorized: false // Allow self-signed certificates in development
+      })
     });
 
     return {
