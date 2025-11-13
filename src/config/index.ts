@@ -22,6 +22,7 @@ const envSchema = yup.object().shape({
   GOOGLE_CLIENT_SECRET: yup.string().required(),
   GOOGLE_REDIRECT_URI: yup.string().required(),
   GEMINI_API_KEY: yup.string().required(),
+  GEMINI_API_KEYS: yup.string().optional(), // Comma-separated multiple API keys
   INGESTION_API: yup.string().required(),
 });
 
