@@ -14,7 +14,7 @@ import {
 } from './setup-helper';
 
 import { saveDatasources, discoverWebsiteUrls, buildPublicDocuments } from './search-sources-helper';
-import { SearchSourcesResponse } from './types';
+import { SearchSourcesResponse, FetchSitemapResponse } from './types';
 import { DataSourceItem } from '../datasource/types';
 
 
@@ -191,5 +191,26 @@ export const handleGenerateTopics = async (
     if (error instanceof ApiError) throw error;
     logger.error('Error generating topics:', error);
     throw new ApiError('Error generating topics', httpStatus.INTERNAL_SERVER_ERROR);
+  }
+};
+
+export const handleFetchSitemap = async (
+  userId: string,
+  websiteUrl: string
+): Promise<FetchSitemapResponse> => {
+  try {
+    const discovered = await discoverWebsiteUrls(websiteUrl, 100, 50);
+
+    return {
+      urls: discovered.urls,
+      pages: discovered.pages,
+      files: discovered.files,
+      source: discovered.source,
+      totalCount: discovered.urls.length,
+    };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    logger.error('Error fetching sitemap:', error);
+    throw new ApiError('Error fetching sitemap', httpStatus.INTERNAL_SERVER_ERROR);
   }
 };

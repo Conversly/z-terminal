@@ -47,6 +47,14 @@ export interface SearchSourcesResponse {
   source: 'sitemap' | 'crawl';
 }
 
+export interface FetchSitemapResponse {
+  urls: string[];
+  pages: string[];
+  files: string[];
+  source: 'sitemap' | 'crawl';
+  totalCount: number;
+}
+
 
 
 
