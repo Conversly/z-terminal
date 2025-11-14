@@ -73,6 +73,16 @@ export const generateTopics = catchAsync(
   }
 );
 
+export const getApiKeyStats = catchAsync(
+  async (req: jwtReq, res: Response, next: NextFunction) => {
+    const { getKeyRotationManager } = await import('../../shared/apiKeyRotationManager');
+    const keyManager = getKeyRotationManager();
+    const stats = keyManager.getStats();
+
+    res.status(httpStatus.OK).json({
+      success: true,
+      message: 'API key rotation statistics',
+      data: stats,
 
 export const fetchSitemap = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {

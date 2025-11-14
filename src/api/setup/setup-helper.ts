@@ -141,40 +141,112 @@ export async function inferBrandFromMarkdown(
   markdown: string,
   useCase?: string,
 ): Promise<{ systemPrompt: string; name: string; description: string; logoUrl?: string }> {
+  const { getKeyRotationManager } = await import('../../shared/apiKeyRotationManager');
+  const keyManager = getKeyRotationManager();
+  
   const systemInstruction = `You analyze a brand's public website content and propose defaults for a customer-facing AI chatbot. Return ONLY strict JSON with keys: systemPrompt, name, description, logoUrl. Do not include code fences or extra text.`;
   const prompt = `Website: ${websiteUrl}\nUse case: ${useCase || 'AI Assistant'}\n\nContent (markdown):\n${markdown}`;
 
-  const response = await axios.post(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
-    {
-      system_instruction: { parts: [{ text: systemInstruction }] },
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { response_mime_type: 'application/json' },
-    },
-    { headers: { 'x-goog-api-key': env.GEMINI_API_KEY, 'Content-Type': 'application/json' } }
-  );
+  const maxKeyRotations = keyManager.getAvailableKeyCount();
+  let attempts = 0;
 
-  const textOut = response.data?.candidates?.[0]?.content?.parts?.[0]?.text as string | undefined;
-  if (!textOut) {
-    throw new ApiError('Failed to infer brand details', httpStatus.INTERNAL_SERVER_ERROR);
+  while (attempts < maxKeyRotations) {
+    const currentApiKey = keyManager.getCurrentKey();
+    
+    if (!currentApiKey) {
+      throw new ApiError('No API keys available', httpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    try {
+      logger.info(`Attempting Gemini API call with key rotation (attempt ${attempts + 1}/${maxKeyRotations})`);
+      
+      const response = await axios.post(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+        {
+          system_instruction: { parts: [{ text: systemInstruction }] },
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { response_mime_type: 'application/json' },
+        },
+        { 
+          headers: { 'x-goog-api-key': currentApiKey, 'Content-Type': 'application/json' },
+          timeout: 30000 // 30 second timeout
+        }
+      );
+
+      const textOut = response.data?.candidates?.[0]?.content?.parts?.[0]?.text as string | undefined;
+      if (!textOut) {
+        throw new ApiError('Failed to infer brand details', httpStatus.INTERNAL_SERVER_ERROR);
+      }
+      
+      let parsed: any;
+      try {
+        parsed = JSON.parse(textOut);
+      } catch {
+        throw new ApiError('Model returned non-JSON output', httpStatus.INTERNAL_SERVER_ERROR);
+      }
+
+      const systemPrompt: string = parsed.systemPrompt || parsed.system_prompt;
+      const name: string = parsed.name || '';
+      const description: string = parsed.description || '';
+      const logoUrl: string | undefined = parsed.logoUrl || parsed.logo_url || undefined;
+
+      if (!systemPrompt) {
+        throw new ApiError('Missing systemPrompt in model output', httpStatus.INTERNAL_SERVER_ERROR);
+      }
+
+      logger.info('Successfully inferred brand details from markdown');
+      return { systemPrompt, name, description, logoUrl };
+      
+    } catch (error: any) {
+      logger.error(`Gemini API call failed:`, {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        message: error.message,
+        code: error.code,
+        attempt: attempts + 1,
+        responseData: error.response?.data,
+        apiKey: currentApiKey?.substring(0, 20) + '...',
+      });
+
+      // Check if we should rotate the key
+      const shouldRotate = error.response?.status === 429 || // Rate limit
+                          error.response?.status === 403 || // Quota exceeded
+                          error.response?.status === 503 || // Service unavailable
+                          error.code === 'ECONNRESET' ||
+                          error.code === 'ETIMEDOUT';
+
+      if (shouldRotate) {
+        logger.info(`Rotating to next API key due to error (status: ${error.response?.status}, code: ${error.code})`);
+        keyManager.rotateKey(currentApiKey, error);
+        attempts++;
+        continue;
+      }
+
+      // For 400 errors, check if it's an API key issue before throwing
+      if (error.response?.status === 400) {
+        const errorDetails = JSON.stringify(error.response?.data || {});
+        logger.error(`400 error details:`, errorDetails);
+        if (errorDetails.includes('API_KEY_INVALID') || errorDetails.includes('invalid api key') || errorDetails.includes('API key not valid')) {
+          logger.warn(`Invalid API key detected, rotating (status: 400)`);
+          keyManager.rotateKey(currentApiKey, error);
+          attempts++;
+          continue;
+        }
+      }
+
+      // For non-rotatable errors, throw immediately
+      if (error.response?.status === 401) {
+        throw new ApiError('Invalid API key or insufficient permissions.', httpStatus.UNAUTHORIZED);
+      } else {
+        throw new ApiError(`Failed to infer brand details: ${error.message || 'Unknown error'}`, httpStatus.INTERNAL_SERVER_ERROR);
+      }
+    }
   }
-  let parsed: any;
-  try {
-    parsed = JSON.parse(textOut);
-  } catch {
-    throw new ApiError('Model returned non-JSON output', httpStatus.INTERNAL_SERVER_ERROR);
-  }
 
-  const systemPrompt: string = parsed.systemPrompt || parsed.system_prompt;
-  const name: string = parsed.name || '';
-  const description: string = parsed.description || '';
-  const logoUrl: string | undefined = parsed.logoUrl || parsed.logo_url || undefined;
-
-  if (!systemPrompt) {
-    throw new ApiError('Missing systemPrompt in model output', httpStatus.INTERNAL_SERVER_ERROR);
-  }
-
-  return { systemPrompt, name, description, logoUrl };
+  // If we've exhausted all keys
+  const stats = keyManager.getStats();
+  logger.error('All API keys exhausted', stats);
+  throw new ApiError('All API keys are rate limited or unavailable. Please try again later.', httpStatus.TOO_MANY_REQUESTS);
 }
 
 export async function generateTopicsFromContent(
@@ -182,6 +254,9 @@ export async function generateTopicsFromContent(
   markdown: string,
   useCase?: string,
 ): Promise<string[]> {
+  const { getKeyRotationManager } = await import('../../shared/apiKeyRotationManager');
+  const keyManager = getKeyRotationManager();
+  
   const systemInstruction = `You create a concise taxonomy of user question topics for a chatbot.
 Return ONLY a strict JSON array of 10 short topic names (strings), each <= 3 words.
 Do not include code fences or any extra text.`;
@@ -191,32 +266,104 @@ Use case: ${useCase || 'AI Assistant'}
 Public content (markdown excerpt):
 ${markdown}`;
 
-  const response = await axios.post(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
-    {
-      system_instruction: { parts: [{ text: systemInstruction }] },
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { response_mime_type: 'application/json' },
-    },
-    { headers: { 'x-goog-api-key': env.GEMINI_API_KEY, 'Content-Type': 'application/json' } }
-  );
+  const maxKeyRotations = keyManager.getAvailableKeyCount();
+  let attempts = 0;
 
-  const textOut = response.data?.candidates?.[0]?.content?.parts?.[0]?.text as string | undefined;
-  if (!textOut) {
-    throw new ApiError('Failed to generate topics', httpStatus.INTERNAL_SERVER_ERROR);
+  while (attempts < maxKeyRotations) {
+    const currentApiKey = keyManager.getCurrentKey();
+    
+    if (!currentApiKey) {
+      throw new ApiError('No API keys available', httpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    try {
+      logger.info(`Attempting Gemini API topics call with key rotation (attempt ${attempts + 1}/${maxKeyRotations})`);
+      
+      const response = await axios.post(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+        {
+          system_instruction: { parts: [{ text: systemInstruction }] },
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { response_mime_type: 'application/json' },
+        },
+        { 
+          headers: { 'x-goog-api-key': currentApiKey, 'Content-Type': 'application/json' },
+          timeout: 30000 // 30 second timeout
+        }
+      );
+
+      const textOut = response.data?.candidates?.[0]?.content?.parts?.[0]?.text as string | undefined;
+      if (!textOut) {
+        throw new ApiError('Failed to generate topics', httpStatus.INTERNAL_SERVER_ERROR);
+      }
+      
+      let parsed: any;
+      try {
+        parsed = JSON.parse(textOut);
+      } catch {
+        throw new ApiError('Model returned non-JSON output for topics', httpStatus.INTERNAL_SERVER_ERROR);
+      }
+      
+      if (!Array.isArray(parsed)) {
+        throw new ApiError('Model did not return an array of topics', httpStatus.INTERNAL_SERVER_ERROR);
+      }
+      
+      const cleaned = parsed
+        .map((t: any) => (typeof t === 'string' ? t.trim() : ''))
+        .filter((t: string) => t.length > 0)
+        .slice(0, 10);
+        
+      logger.info(`Successfully generated ${cleaned.length} topics from content`);
+      return Array.from(new Set(cleaned));
+      
+    } catch (error: any) {
+      logger.error(`Gemini API topics call failed:`, {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        message: error.message,
+        code: error.code,
+        attempt: attempts + 1,
+        responseData: error.response?.data,
+        apiKey: currentApiKey?.substring(0, 20) + '...',
+      });
+
+      // Check if we should rotate the key
+      const shouldRotate = error.response?.status === 429 || // Rate limit
+                          error.response?.status === 403 || // Quota exceeded
+                          error.response?.status === 503 || // Service unavailable
+                          error.code === 'ECONNRESET' ||
+                          error.code === 'ETIMEDOUT';
+
+      if (shouldRotate) {
+        logger.info(`Rotating to next API key due to error (status: ${error.response?.status}, code: ${error.code})`);
+        keyManager.rotateKey(currentApiKey, error);
+        attempts++;
+        continue;
+      }
+
+      // For 400 errors, check if it's an API key issue before throwing
+      if (error.response?.status === 400) {
+        const errorDetails = JSON.stringify(error.response?.data || {});
+        logger.error(`400 error details for topics:`, errorDetails);
+        if (errorDetails.includes('API_KEY_INVALID') || errorDetails.includes('invalid api key') || errorDetails.includes('API key not valid')) {
+          logger.warn(`Invalid API key detected for topics, rotating (status: 400)`);
+          keyManager.rotateKey(currentApiKey, error);
+          attempts++;
+          continue;
+        }
+      }
+
+      // For non-rotatable errors, throw immediately
+      if (error.response?.status === 401) {
+        throw new ApiError('Invalid API key or insufficient permissions.', httpStatus.UNAUTHORIZED);
+      } else {
+        throw new ApiError(`Failed to generate topics: ${error.message || 'Unknown error'}`, httpStatus.INTERNAL_SERVER_ERROR);
+      }
+    }
   }
-  let parsed: any;
-  try {
-    parsed = JSON.parse(textOut);
-  } catch {
-    throw new ApiError('Model returned non-JSON output for topics', httpStatus.INTERNAL_SERVER_ERROR);
-  }
-  if (!Array.isArray(parsed)) {
-    throw new ApiError('Model did not return an array of topics', httpStatus.INTERNAL_SERVER_ERROR);
-  }
-  const cleaned = parsed
-    .map((t: any) => (typeof t === 'string' ? t.trim() : ''))
-    .filter((t: string) => t.length > 0)
-    .slice(0, 10);
-  return Array.from(new Set(cleaned));
+
+  // If we've exhausted all keys
+  const stats = keyManager.getStats();
+  logger.error('All API keys exhausted for topics generation', stats);
+  throw new ApiError('All API keys are rate limited or unavailable. Please try again later.', httpStatus.TOO_MANY_REQUESTS);
 }
