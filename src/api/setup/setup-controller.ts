@@ -7,6 +7,7 @@ import {
   handleInferPrompt,
   handleSearchSources,
   handleGenerateTopics,
+  handleFetchSitemap,
 } from './setup-service';
 
 
@@ -82,6 +83,17 @@ export const getApiKeyStats = catchAsync(
       success: true,
       message: 'API key rotation statistics',
       data: stats,
+
+export const fetchSitemap = catchAsync(
+  async (req: jwtReq, res: Response, next: NextFunction) => {
+    const data = await handleFetchSitemap(
+      req.user.userId as string,
+      req.body.websiteUrl,
+    );
+        res.status(httpStatus.OK).json({
+      success: true,
+      message: 'Fetched sitemap',
+      data,
     });
   }
 );
