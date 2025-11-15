@@ -57,7 +57,12 @@ export const handleInferPrompt = async (
     return { chatbotId, name: updated.name, description: updated.description, systemPrompt: updated.systemPrompt, logoUrl: updated.logoUrl || logoUrl };
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    logger.error('Error inferring prompt:', error);
+    logger.error('Error inferring prompt:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      chatbotId,
+      websiteUrl,
+    });
     throw new ApiError('Error inferring prompt', httpStatus.INTERNAL_SERVER_ERROR);
   }
 };
@@ -189,7 +194,12 @@ export const handleGenerateTopics = async (
     return { chatbotId, topics: inserted.map(t => ({ id: t.id, name: t.name, color: t.color || '#888888' })) };
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    logger.error('Error generating topics:', error);
+    logger.error('Error generating topics:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      chatbotId,
+      websiteUrl,
+    });
     throw new ApiError('Error generating topics', httpStatus.INTERNAL_SERVER_ERROR);
   }
 };
