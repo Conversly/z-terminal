@@ -1,5 +1,6 @@
 import { pgTable, serial, text, timestamp, varchar, integer, smallint, boolean, json, decimal, index, uniqueIndex, uuid,foreignKey, unique, real, pgEnum, customType, primaryKey , date} from 'drizzle-orm/pg-core';
 import { like, sql } from 'drizzle-orm';
+import { createId } from '@paralleldrive/cuid2';
 
 const vector = customType<{ data: number[] }>({
   dataType() {
@@ -87,7 +88,7 @@ export const user = pgTable(
       .notNull(),
     is2FaAuthEnabled: boolean('is2fa_auth_enabled').default(false).notNull(),
     isBanned: boolean('is_banned').default(false).notNull(),
-    id: uuid().defaultRandom().primaryKey().notNull(),
+    id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
     email: text(),
     displayName: text('display_name').notNull(),
     avatarUrl: text('avatar_url'),
@@ -105,8 +106,8 @@ export const authMethod = pgTable(
     updatedAt: timestamp('updated_at', { precision: 3, mode: 'string' })
       .default(sql`(now() AT TIME ZONE 'UTC'::text)`)
       .notNull(),
-    id: uuid().defaultRandom().primaryKey().notNull(),
-    userId: uuid('user_id').notNull(),
+    id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+    userId: text('user_id').notNull(),
     googleSub: text('google_sub'),
     googleEmail: text('google_email'),
     provider: authProvider().notNull(),
@@ -140,8 +141,8 @@ export const authMethod = pgTable(
 );
 
 export const chatBots = pgTable('chatbot', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  userId: uuid('user_id').notNull(),
+  id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+  userId: text('user_id').notNull(),
   name: varchar('name').notNull(),
   description: text('description').notNull(),
   systemPrompt: text('system_prompt').notNull(),
@@ -164,9 +165,9 @@ export const chatBots = pgTable('chatbot', {
 ]);
 
 export const originDomains = pgTable('origin_domains', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull(),
-  chatbotId: uuid('chatbot_id').notNull(),
+  id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+  userId: text('user_id').notNull(),
+  chatbotId: text('chatbot_id').notNull(),
   apiKey: varchar('api_key', { length: 255 }).notNull(),
   domain: varchar('domain').notNull(),
   createdAt: timestamp('created_at', { mode: 'date', precision: 6 }).defaultNow(),
@@ -198,8 +199,8 @@ export const originDomains = pgTable('origin_domains', {
 ]);
 
 export const dataSources = pgTable('data_source', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  chatbotId: uuid('chatbot_id').notNull(),
+  id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+  chatbotId: text('chatbot_id').notNull(),
   type: dataSourceType().notNull(),
   sourceDetails: json('source_details').notNull(),
   createdAt: timestamp('created_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
@@ -219,14 +220,14 @@ export const dataSources = pgTable('data_source', {
 ]);
 
 export const embeddings = pgTable('embeddings', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  userId: uuid('user_id').notNull(),
-  chatbotId: uuid('chatbot_id').notNull(),
+  id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+  userId: text('user_id').notNull(),
+  chatbotId: text('chatbot_id').notNull(),
   text: varchar('text').notNull(),
   vector: real("vector").array(), // this stores float[] of length 768
   createdAt: timestamp('created_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
-  dataSourceId: uuid('data_source_id'),
+  dataSourceId: text('data_source_id'),
   citation: text('citation'),
 }, (table) => [
   index('idx_embeddings_citation').on(table.citation),
@@ -255,8 +256,8 @@ export const embeddings = pgTable('embeddings', {
 ]);
 
 export const analytics = pgTable('analytics', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  chatbotId: uuid('chatbot_id').notNull().unique('unique_chatbot_id'),
+  id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+  chatbotId: text('chatbot_id').notNull().unique('unique_chatbot_id'),
   responses: integer('responses').default(0),
   likes: integer('likes').default(0),
   dislikes: integer('dislikes').default(0),
@@ -273,9 +274,9 @@ export const analytics = pgTable('analytics', {
 ]);
 
 export const citations = pgTable('citation', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  analyticsId: uuid('analytics_id').notNull(),
-  chatbotId: uuid('chatbot_id').notNull(),
+  id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+  analyticsId: text('analytics_id').notNull(),
+  chatbotId: text('chatbot_id').notNull(),
   source: text('source').notNull(),
   count: integer('count').default(1),
   createdAt: timestamp('created_at', { mode: 'date', precision: 6 }).defaultNow(),
@@ -299,7 +300,7 @@ export const citations = pgTable('citation', {
 ]);
 
 export const subscriptionPlans = pgTable('subscription_plans', {
-  planId: serial('plan_id').primaryKey(),
+  planId: text('plan_id').primaryKey().notNull().$defaultFn(() => createId()),
   planName: varchar('plan_name', { length: 255 }).notNull(),
   isActive: boolean('is_active').default(true),
   durationInDays: integer('duration_in_days').notNull(),
@@ -310,9 +311,9 @@ export const subscriptionPlans = pgTable('subscription_plans', {
 });
 
 export const subscribedUsers = pgTable('subscribed_users', {
-  subscriptionId: serial('subscription_id').primaryKey(),
-  userId: uuid('user_id').notNull(),
-  planId: integer('plan_id').notNull(),
+  subscriptionId: text('subscription_id').primaryKey().notNull().$defaultFn(() => createId()),
+  userId: text('user_id').notNull(),
+  planId: text('plan_id').notNull(),
   startDate: timestamp('start_date', { mode: 'date', precision: 6 }).defaultNow(),
   expiryDate: timestamp('expiry_date', { mode: 'date', precision: 6 }).notNull(),
   isActive: boolean('is_active').default(true),
@@ -338,9 +339,9 @@ export const subscribedUsers = pgTable('subscribed_users', {
 ]);
 
 export const messages = pgTable('messages', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  uniqueConvId: uuid('unique_conv_id'),
-  chatbotId: uuid('chatbot_id').notNull(),  // denormalized for fast filtering
+  id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+  uniqueConvId: text('unique_conv_id'),
+  chatbotId: text('chatbot_id').notNull(),  // denormalized for fast filtering
   channel: messageChannel('channel').notNull().default('WIDGET'),  
   type: messageType('type').notNull().default('user'),
   content: text('content').notNull(),
@@ -349,7 +350,7 @@ export const messages = pgTable('messages', {
   feedbackComment: text('feedback_comment'),
   channelMessageMetadata: json('channel_message_metadata'),   // whatsapp, widget metadata.
   createdAt: timestamp('created_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
-  topicId: uuid('topic_id'),
+  topicId: text('topic_id'),
 }, (table) => [
   index('messages_unique_conv_id_created_idx').on(
     table.uniqueConvId,
@@ -428,9 +429,9 @@ export interface WidgetStyles {
 export const widgetConfig = pgTable(
   'widget_config',
   {
-    id: uuid('id').defaultRandom().primaryKey(),
+    id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
 
-    chatbotId: uuid('chatbot_id')
+    chatbotId: text('chatbot_id')
       .notNull()
       .references(() => chatBots.id, { onUpdate: 'cascade', onDelete: 'cascade' }),
 
@@ -465,8 +466,8 @@ export const widgetConfig = pgTable(
 );
 
 export const chatbotTopics = pgTable('chatbot_topics', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  chatbotId: uuid('chatbot_id').notNull(),
+  id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+  chatbotId: text('chatbot_id').notNull(),
   name: varchar('name', { length: 255 }).notNull(),
   color: varchar('color', { length: 7 }).default('#888888'),
   createdAt: timestamp('created_at').defaultNow(),
@@ -482,9 +483,9 @@ export const chatbotTopics = pgTable('chatbot_topics', {
 ]);
 
 export const chatbotTopicStats = pgTable("chatbot_topic_stats", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  chatbotId: uuid("chatbot_id").notNull(),
-  topicId: uuid("topic_id").notNull(),
+  id: text("id").primaryKey().notNull().$defaultFn(() => createId()),
+  chatbotId: text("chatbot_id").notNull(),
+  topicId: text("topic_id").notNull(),
   likeCount: integer("like_count").default(0).notNull(),
   dislikeCount: integer("dislike_count").default(0).notNull(),
   messageCount: integer("message_count").default(0).notNull(),
@@ -503,8 +504,8 @@ export const chatbotTopicStats = pgTable("chatbot_topic_stats", {
 
 // WhatsApp Tables (with webhook secrets and all required details)
 export const whatsapp_accounts = pgTable('whatsapp_accounts', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  chatbotId: uuid('chatbot_id').notNull().references(() => chatBots.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+  id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+  chatbotId: text('chatbot_id').notNull().references(() => chatBots.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   phoneNumber: varchar('phone_number', { length: 20 }).notNull().unique(),
   wabaId: varchar('waba_id', { length: 255 }).notNull(),
   phoneNumberId: varchar('phone_number_id', { length: 255 }).notNull(),
@@ -524,8 +525,8 @@ export const whatsapp_accounts = pgTable('whatsapp_accounts', {
 ]);
 
 export const WhatsappContacts = pgTable('whatsapp_contacts', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  chatbotId: uuid('chatbot_id').notNull(),
+  id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+  chatbotId: text('chatbot_id').notNull(),
   phoneNumber: varchar('phone_number', { length: 255 }).notNull(),
   displayName: varchar('display_name', { length: 255 }),
   // Detailed metadata: { wa_id, profile, first_seen_at, last_seen_at, last_inbound_message_id, waba_id, phone_number_id, display_phone_number, source, opt_in_status, etc }
@@ -544,8 +545,8 @@ export const WhatsappContacts = pgTable('whatsapp_contacts', {
 ]);
 
 export const whatsappClientUsers = pgTable('whatsapp_client_users', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  whatsappAccountId: uuid('whatsapp_account_id').notNull().references(() => whatsapp_accounts.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+  id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+  whatsappAccountId: text('whatsapp_account_id').notNull().references(() => whatsapp_accounts.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   phoneNumber: varchar('phone_number', { length: 255 }).notNull(),
   name: varchar('name', { length: 255 }),
   source: whatsappSource('source').default('organic').notNull(),
@@ -559,9 +560,9 @@ export const whatsappClientUsers = pgTable('whatsapp_client_users', {
 ]);
 
 export const whatsappConversations = pgTable('whatsapp_conversations', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  whatsappAccountId: uuid('whatsapp_account_id').notNull().references(() => whatsapp_accounts.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-  whatsappClientUserId: uuid('whatsapp_client_user_id').notNull().references(() => whatsappClientUsers.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+  id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+  whatsappAccountId: text('whatsapp_account_id').notNull().references(() => whatsapp_accounts.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+  whatsappClientUserId: text('whatsapp_client_user_id').notNull().references(() => whatsappClientUsers.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   waConversationId: varchar('wa_conversation_id', { length: 255 }).notNull().unique(),
   startedAt: timestamp('started_at', { mode: 'date', precision: 6 }).notNull(),
   status: whatsappConversationStatus('status').default('open').notNull(),
@@ -575,8 +576,8 @@ export const whatsappConversations = pgTable('whatsapp_conversations', {
 ]);
 
 export const whatsappMessages = pgTable('whatsapp_messages', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  conversationId: uuid('conversation_id').notNull().references(() => whatsappConversations.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+  id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+  conversationId: text('conversation_id').notNull().references(() => whatsappConversations.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   waMessageId: varchar('wa_message_id', { length: 255 }).notNull().unique(),
   senderType: whatsappSenderType('sender_type').notNull(),
   messageType: whatsappMessageType('message_type').notNull(),
@@ -591,8 +592,8 @@ export const whatsappMessages = pgTable('whatsapp_messages', {
 ]);
 
 export const AnalyticsPerDay = pgTable('analytics_per_day', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  chatbotId: uuid('chatbot_id').notNull(),
+  id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+  chatbotId: text('chatbot_id').notNull(),
   date: date('date').notNull().default(sql`CURRENT_DATE`),
   totalMessages: integer('total_messages').default(0).notNull(),
   userMessages: integer('user_messages').default(0).notNull(),
@@ -620,8 +621,8 @@ export const AnalyticsPerDay = pgTable('analytics_per_day', {
 
 // only core whatsapp related columns
 export const WhatappAnalyticsPerDay = pgTable('whatapp_analytics_per_day', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  chatbotId: uuid('chatbot_id').notNull(),
+  id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+  chatbotId: text('chatbot_id').notNull(),
   date: date('date').notNull().default(sql`CURRENT_DATE`),
 }, (table) => [
   foreignKey({

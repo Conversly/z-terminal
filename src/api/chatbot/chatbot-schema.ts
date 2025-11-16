@@ -19,13 +19,11 @@ export const chatbotInstructionsSchema = yup.object().shape({
 
 export const deleteChatbotSchema = yup.object().shape({
   id: yup.string()
-    .uuid('Chatbot ID must be a valid UUID')
     .required('Chatbot ID is required'),
 });
 
 export const getChatbotSchema = yup.object().shape({
   id: yup.string()
-    .uuid('Chatbot ID must be a valid UUID')
     .required('Chatbot ID is required'),
 });
 
@@ -33,7 +31,6 @@ export const getChatbotSchema = yup.object().shape({
 export const createTopicSchema = yup.object().shape({
   chatbotId: yup
     .string()
-    .uuid('Chatbot ID must be a valid UUID')
     .required('Chatbot ID is required'),
   name: yup.string().required('Topic name is required').min(1, 'Name must not be empty'),
 });
@@ -41,7 +38,6 @@ export const createTopicSchema = yup.object().shape({
 export const topicIdParamsSchema = yup.object().shape({
   id: yup
     .string()
-    .uuid('Topic ID must be a valid UUID')
     .required('Topic ID is required'),
 });
 
@@ -49,7 +45,6 @@ export const updateTopicBodySchema = yup
   .object()
   .shape({
     id: yup.string()
-      .uuid('Topic ID must be a valid UUID')
       .required('Topic ID is required'),
     name: yup.string().optional().min(1, 'Name must not be empty')
   })

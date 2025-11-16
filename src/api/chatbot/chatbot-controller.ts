@@ -12,6 +12,7 @@ import {
   handleCreateTopic,
   handleUpdateTopic,
   handleDeleteTopic,
+  handleGetTopics,
   handleGetTopic,
 } from './chatbot-service';
 import { CreateChatbotInput, GenerateInstructionsInput, DeleteChatbotInput, CreateTopicInput, UpdateTopicInput, DeleteTopicInput } from './types';
@@ -156,16 +157,38 @@ export const deleteTopic = catchAsync(
   }
 );
 
+export const getTopics = catchAsync(
+  async (req: jwtReq, res: Response, next: NextFunction) => {
+    const chatbotId = req.params.chatbotId;
+    if (!chatbotId) {
+      return res.status(httpStatus.BAD_REQUEST).json({
+        success: false,
+        message: 'Chatbot ID is required',
+      });
+    }
+
+    const topics = await handleGetTopics(
+      req.user.userId as string,
+      chatbotId
+    );
+
+    res.status(httpStatus.OK).json({
+      success: true,
+      data: topics,
+    });
+  }
+);
+
 export const getTopic = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
-    const topics = await handleGetTopic(
+    const topic = await handleGetTopic(
       req.user.userId as string,
       req.params.id
     );
 
     res.status(httpStatus.OK).json({
       success: true,
-      data: topics,
+      data: topic,
     });
   }
 );

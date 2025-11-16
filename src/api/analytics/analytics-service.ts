@@ -308,7 +308,7 @@ export const handleGetTopicPieChart = async (
     const endDateSql = sql`CURRENT_DATE`;
 
     const rowsRes = await db.execute(sql<{
-      topic_id: number;
+      topic_id: string;
       topic_name: string;
       topic_color: string | null;
       messages: number;

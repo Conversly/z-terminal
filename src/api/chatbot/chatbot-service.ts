@@ -408,15 +408,16 @@ export const handleDeleteTopic = async (
   }
 };
 
-export const handleGetTopic = async (
+export const handleGetTopics = async (
   userId: string,
-  id: string
+  chatbotId: string
 ): Promise<TopicResponse[]> => {
   try {
+    // Verify chatbot ownership first
     const [chatbot] = await db
       .select()
       .from(chatBotsTable)
-      .where(eq(chatBotsTable.id, id))
+      .where(eq(chatBotsTable.id, chatbotId))
       .limit(1);
 
     if (!chatbot) {
@@ -435,14 +436,59 @@ export const handleGetTopic = async (
         createdAt: chatbotTopicsTable.createdAt,
       })
       .from(chatbotTopicsTable)
-      .where(eq(chatbotTopicsTable.chatbotId, id));
+      .where(eq(chatbotTopicsTable.chatbotId, chatbotId));
 
     return topics;
+  } catch (error) {
+    logger.error('Error fetching topics:', error);
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError('Error fetching topics', httpStatus.INTERNAL_SERVER_ERROR);
+  }
+};
+
+export const handleGetTopic = async (
+  userId: string,
+  id: string
+): Promise<TopicResponse> => {
+  try {
+    const [topic] = await db
+      .select({
+        id: chatbotTopicsTable.id,
+        chatbotId: chatbotTopicsTable.chatbotId,
+        name: chatbotTopicsTable.name,
+        color: chatbotTopicsTable.color,
+        createdAt: chatbotTopicsTable.createdAt,
+      })
+      .from(chatbotTopicsTable)
+      .where(eq(chatbotTopicsTable.id, id))
+      .limit(1);
+
+    if (!topic) {
+      throw new ApiError('Topic not found', httpStatus.NOT_FOUND);
+    }
+
+    // Verify chatbot ownership
+    const [chatbot] = await db
+      .select()
+      .from(chatBotsTable)
+      .where(eq(chatBotsTable.id, topic.chatbotId))
+      .limit(1);
+
+    if (!chatbot) {
+      throw new ApiError('Chatbot not found', httpStatus.NOT_FOUND);
+    }
+    if (chatbot.userId !== userId) {
+      throw new ApiError('Unauthorized: You do not own this chatbot', httpStatus.FORBIDDEN);
+    }
+
+    return topic;
   } catch (error) {
     logger.error('Error fetching topic:', error);
     if (error instanceof ApiError) {
       throw error;
     }
-    throw new ApiError('Error fetching topics', httpStatus.INTERNAL_SERVER_ERROR);
+    throw new ApiError('Error fetching topic', httpStatus.INTERNAL_SERVER_ERROR);
   }
 };

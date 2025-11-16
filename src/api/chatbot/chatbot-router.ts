@@ -10,12 +10,9 @@ import {
     createTopic,
     updateTopic,
     deleteTopic,
+    getTopics,
     getTopic,
 } from './chatbot-controller';
-import {
-  getWhatsAppChats,
-  getWhatsAppContactMessages,
-} from '../whatsapp/whatsapp-controller';
 import {
   createChatbotSchema,
   generateInstructionSchema,
@@ -26,7 +23,6 @@ import {
   topicIdParamsSchema,
   updateTopicBodySchema,
 } from './chatbot-schema';
-import { get } from 'http';
 
 const app = express.Router();
 
@@ -38,11 +34,13 @@ app.get('/generate-prompt', auth, validate('query', generateInstructionSchema), 
 
 app.post('/prompt', auth, validate('body', chatbotInstructionsSchema), updateInstruction);
 
-app.delete('/:id', auth, validate('params', deleteChatbotSchema), deleteChatbot);
+// Topic routes - must come before /:id routes to avoid route conflicts
+app.get(
+  '/:chatbotId/topics',
+  auth,
+  getTopics
+);
 
-app.get('/:id', auth, validate('params', getChatbotSchema), getChatbot);
-
-// Topic routes
 app.post(
   '/topics',
   auth,
@@ -67,23 +65,12 @@ app.delete(
 app.get(
   '/topics/:id',
   auth,
-  validate('params', getChatbotSchema),
+  validate('params', topicIdParamsSchema),
   getTopic
 );
 
-// WhatsApp nested routes
-// GET /chatbot/:chatbotId/whatsapp/:whatsappId/chats - list all chats
-app.get(
-  '/:chatbotId/whatsapp/:whatsappId/chats',
-  auth,
-  getWhatsAppChats
-);
+app.delete('/:id', auth, validate('params', deleteChatbotSchema), deleteChatbot);
 
-// GET /chatbot/:chatbotId/whatsapp/:whatsappId/chats/:contactId - get messages for a contact
-app.get(
-  '/:chatbotId/whatsapp/:whatsappId/chats/:contactId',
-  auth,
-  getWhatsAppContactMessages
-);
+app.get('/:id', auth, validate('params', getChatbotSchema), getChatbot);
 
 export default app;

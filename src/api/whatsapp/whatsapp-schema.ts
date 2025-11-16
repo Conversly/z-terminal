@@ -3,7 +3,6 @@ import * as yup from 'yup';
 export const createWhatsAppIntegrationSchema = yup.object().shape({
   chatbotId: yup
     .string()
-    .uuid('Chatbot ID must be a valid UUID')
     .required('Chatbot ID is required'),
   phoneNumberId: yup
     .string()
@@ -47,14 +46,12 @@ export const updateWhatsAppIntegrationSchema = yup.object().shape({
 export const getWhatsAppIntegrationSchema = yup.object().shape({
   chatbotId: yup
     .string()
-    .uuid('Chatbot ID must be a valid UUID')
     .required('Chatbot ID is required'),
 });
 
 export const deleteWhatsAppIntegrationSchema = yup.object().shape({
   chatbotId: yup
     .string()
-    .uuid('Chatbot ID must be a valid UUID')
     .required('Chatbot ID is required'),
 });
 
