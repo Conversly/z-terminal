@@ -22,7 +22,7 @@ import { verifyChatbotOwnership } from '../../shared/helper-queries';
 
 export const handleGetSummary = async (
   userId: string,
-  chatbotId: number
+  chatbotId: string
 ): Promise<GetSummaryResponse> => {
   try {
     const chatbot = await verifyChatbotOwnership(chatbotId, userId);
@@ -91,7 +91,7 @@ export const handleGetSummary = async (
 
 export const handleGetCharts = async (
   userId: string,
-  chatbotId: number,
+  chatbotId: string,
   days: number
 ): Promise<GetChartsResponse> => {
   try {
@@ -165,7 +165,7 @@ export const handleGetCharts = async (
 
 export const handleGetFeedbacks = async (
   userId: string,
-  chatbotId: number,
+  chatbotId: string,
   limit: number
 ): Promise<GetFeedbacksResponse> => {
   try {
@@ -209,7 +209,7 @@ export const handleGetFeedbacks = async (
 
 export const handleGetTopicBarChart = async (
   userId: string,
-  chatbotId: number,
+  chatbotId: string,
   days: number
 ): Promise<GetTopicBarChartResponse> => {
   try {
@@ -219,7 +219,7 @@ export const handleGetTopicBarChart = async (
     const endDateSql = sql`CURRENT_DATE`;
 
     const rowsRes = await db.execute(sql<{
-      topic_id: number;
+      topic_id: string;
       topic_name: string;
       topic_color: string | null;
       date: string;
@@ -253,7 +253,7 @@ export const handleGetTopicBarChart = async (
     `);
 
     const rows = (rowsRes as any).rows as Array<{
-      topic_id: number;
+      topic_id: string;
       topic_name: string;
       topic_color: string | null;
       date: string;
@@ -262,7 +262,7 @@ export const handleGetTopicBarChart = async (
       dislikes: number;
     }>;
 
-    const topicsMap = new Map<number, { topicId: number; topicName: string; color: string | null; series: Array<{ date: string; messages: number; likes: number; dislikes: number }> }>();
+    const topicsMap = new Map<string, { topicId: string; topicName: string; color: string | null; series: Array<{ date: string; messages: number; likes: number; dislikes: number }> }>();
     for (const r of rows) {
       if (!topicsMap.has(r.topic_id)) {
         topicsMap.set(r.topic_id, { topicId: r.topic_id, topicName: r.topic_name, color: r.topic_color, series: [] });
@@ -298,7 +298,7 @@ export const handleGetTopicBarChart = async (
 
 export const handleGetTopicPieChart = async (
   userId: string,
-  chatbotId: number,
+  chatbotId: string,
   days: number
 ): Promise<GetTopicPieChartResponse> => {
   try {
@@ -333,7 +333,7 @@ export const handleGetTopicPieChart = async (
     `);
 
     const rows = (rowsRes as any).rows as Array<{
-      topic_id: number;
+      topic_id: string;
       topic_name: string;
       topic_color: string | null;
       messages: number;

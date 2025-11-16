@@ -143,7 +143,7 @@ export const handleUpdateInstruction = async (
         systemPrompt: systemPrompt,
         updatedAt: new Date(),
       })
-      .where(eq(chatBotsTable.id, parseInt(chatbotId)))
+      .where(eq(chatBotsTable.id, chatbotId))
       .returning();
 
     if (!updatedChatbot) {
@@ -190,7 +190,7 @@ export const handleGetChatbots = async (
 
 
 export const handleGetChatbot = async (
-  chatbotId: number
+  chatbotId: string
 ): Promise<ChatbotResponse | null> => {
   try {
     const chatbot = await db
@@ -410,7 +410,7 @@ export const handleDeleteTopic = async (
 
 export const handleGetTopic = async (
   userId: string,
-  id: number
+  id: string
 ): Promise<TopicResponse[]> => {
   try {
     const [chatbot] = await db

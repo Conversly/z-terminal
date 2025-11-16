@@ -28,7 +28,7 @@ import {
 
 export const handleGetWidget = async (
 	userId: string,
-	chatbotId: number
+	chatbotId: string
 ): Promise<ChatbotWidget> => {
 	// Verify chatbot ownership
 	const chatbot = await db
@@ -106,7 +106,7 @@ export const handleGetWidget = async (
 // External version does not verify ownership
 // Returns widget config with API key and unique client ID
 export const handleGetWidgetExternal = async (
-	chatbotId: number
+	chatbotId: string
 ): Promise<any> => {
 	// Get chatbot without ownership check
 	const chatbot = await db
@@ -173,8 +173,7 @@ export const handleUpsertWidget = async (
 	input: ChatbotWidget
 ): Promise<ChatbotWidget> => {
 	try {
-		const chatbotIdNum = parseInt(input.chatbotId);
-		if (isNaN(chatbotIdNum)) {
+		if (!input.chatbotId) {
 			throw new ApiError('Invalid chatbot ID', httpStatus.BAD_REQUEST);
 		}
 
@@ -182,7 +181,7 @@ export const handleUpsertWidget = async (
 		const chatbot = await db
 			.select()
 			.from(chatBotsTable)
-			.where(and(eq(chatBotsTable.id, chatbotIdNum), eq(chatBotsTable.userId, userId)))
+			.where(and(eq(chatBotsTable.id, input.chatbotId), eq(chatBotsTable.userId, userId)))
 			.limit(1)
 			.then((r) => r[0]);
 
@@ -193,14 +192,14 @@ export const handleUpsertWidget = async (
 		const existing = await db
 			.select()
 			.from(widgetConfigTable)
-			.where(eq(widgetConfigTable.chatbotId, chatbotIdNum))
+			.where(eq(widgetConfigTable.chatbotId, input.chatbotId))
 			.limit(1)
 			.then((r) => r[0]);
 
 		const incoming = input.partial || ({} as ChatbotCustomization);
 
 		const nextDbValues = {
-			chatbotId: chatbotIdNum,
+			chatbotId: input.chatbotId,
 			styles: existing
 				? { ...(existing.styles as DbWidgetStyles), ...toDbStyles(incoming.styles) }
 				: toDbStyles(incoming.styles),
@@ -227,7 +226,7 @@ export const handleUpsertWidget = async (
 				.returning();
 
 			return {
-				chatbotId: String(chatbotIdNum),
+				chatbotId: input.chatbotId,
 				partial: fromDbToCustomization(created),
 			};
 		}
@@ -235,11 +234,11 @@ export const handleUpsertWidget = async (
 		const [updated] = await db
 			.update(widgetConfigTable)
 			.set(nextDbValues)
-			.where(eq(widgetConfigTable.chatbotId, chatbotIdNum))
+			.where(eq(widgetConfigTable.chatbotId, input.chatbotId))
 			.returning();
 
 		return {
-			chatbotId: String(chatbotIdNum),
+			chatbotId: input.chatbotId,
 			partial: fromDbToCustomization(updated),
 		};
 	} catch (error) {
@@ -252,7 +251,7 @@ export const handleUpsertWidget = async (
 // Handle generating/regenerating API key
 export const handleGenerateApiKey = async (
 	userId: string,
-	chatbotId: number
+	chatbotId: string
 ): Promise<ApiKeyResponse> => {
 	await verifyChatbotOwnership(chatbotId, userId);
 
@@ -275,7 +274,7 @@ export const handleGenerateApiKey = async (
 // Handle getting API key
 export const handleGetApiKey = async (
 	userId: string,
-	chatbotId: number
+	chatbotId: string
 ): Promise<ApiKeyGetResponse> => {
 	// Verify ownership
 	const chatbot = await verifyChatbotOwnership(chatbotId, userId);
@@ -286,7 +285,7 @@ export const handleGetApiKey = async (
 // Handle getting all allowed domains
 export const handleGetAllowedDomains = async (
 	userId: string,
-	chatbotId: number
+	chatbotId: string
 ): Promise<AllowedDomainsResponse> => {
 	await verifyChatbotOwnership(chatbotId, userId);
 
@@ -305,7 +304,7 @@ export const handleGetAllowedDomains = async (
 // Handle adding a new allowed domain
 export const handleAddAllowedDomain = async (
 	userId: string,
-	chatbotId: number,
+	chatbotId: string,
 	domain: string
 ): Promise<AddDomainResponse> => {
 	// Verify ownership

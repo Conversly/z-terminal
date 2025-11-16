@@ -11,6 +11,13 @@ import {
   subscribedUsers,
   widgetConfig,
   originDomains,
+  chatbotTopics,
+  chatbotTopicStats,
+  messages,
+  whatsapp_accounts,
+  WhatsappContacts,
+  AnalyticsPerDay,
+  WhatappAnalyticsPerDay,
 } from './schema';
 
 export const usersRelations = relations(user, ({ many }) => ({
@@ -45,6 +52,12 @@ export const chatBotsRelations = relations(chatBots, ({ many, one }) => ({
     references: [widgetConfig.chatbotId],
   }),
   originDomains: many(originDomains),
+  chatbotTopics: many(chatbotTopics),
+  messages: many(messages),
+  whatsappAccounts: many(whatsapp_accounts),
+  whatsappContacts: many(WhatsappContacts),
+  analyticsPerDay: many(AnalyticsPerDay),
+  whatappAnalyticsPerDay: many(WhatappAnalyticsPerDay),
 }));
 
 export const embeddingsRelations = relations(embeddings, ({ one }) => ({
@@ -115,5 +128,65 @@ export const originDomainsRelations = relations(originDomains, ({ one }) => ({
   user: one(user, {
     fields: [originDomains.userId],
     references: [user.id],
+  }),
+}));
+
+// Existing topics relations (added for completeness)
+export const chatbotTopicsRelations = relations(chatbotTopics, ({ one, many }) => ({
+  chatBot: one(chatBots, {
+    fields: [chatbotTopics.chatbotId],
+    references: [chatBots.id],
+  }),
+  messages: many(messages),
+  topicStats: many(chatbotTopicStats),
+}));
+
+export const chatbotTopicStatsRelations = relations(chatbotTopicStats, ({ one }) => ({
+  chatBot: one(chatBots, {
+    fields: [chatbotTopicStats.chatbotId],
+    references: [chatBots.id],
+  }),
+  topic: one(chatbotTopics, {
+    fields: [chatbotTopicStats.topicId],
+    references: [chatbotTopics.id],
+  }),
+}));
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  chatBot: one(chatBots, {
+    fields: [messages.chatbotId],
+    references: [chatBots.id],
+  }),
+  topic: one(chatbotTopics, {
+    fields: [messages.topicId],
+    references: [chatbotTopics.id],
+  }),
+}));
+
+export const whatsappContactsRelations = relations(WhatsappContacts, ({ one }) => ({
+  chatBot: one(chatBots, {
+    fields: [WhatsappContacts.chatbotId],
+    references: [chatBots.id],
+  }),
+}));
+
+export const whatsappAccountsRelations = relations(whatsapp_accounts, ({ one }) => ({
+  chatBot: one(chatBots, {
+    fields: [whatsapp_accounts.chatbotId],
+    references: [chatBots.id],
+  }),
+}));
+
+export const analyticsPerDayRelations = relations(AnalyticsPerDay, ({ one }) => ({
+  chatBot: one(chatBots, {
+    fields: [AnalyticsPerDay.chatbotId],
+    references: [chatBots.id],
+  }),
+}));
+
+export const whatappAnalyticsPerDayRelations = relations(WhatappAnalyticsPerDay, ({ one }) => ({
+  chatBot: one(chatBots, {
+    fields: [WhatappAnalyticsPerDay.chatbotId],
+    references: [chatBots.id],
   }),
 }));

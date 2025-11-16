@@ -23,6 +23,9 @@ const envSchema = yup.object().shape({
   GOOGLE_REDIRECT_URI: yup.string().required(),
   GEMINI_API_KEY: yup.string().required(),
   INGESTION_API: yup.string().required(),
+  RESPONSE_API_BASE_URL: yup.string().default('http://localhost:8030'),
+  FACEBOOK_APP_SECRET: yup.string().optional(),
+  WHATSAPP_WEBHOOK_URL: yup.string().default('https://webhook-wa-mcnp.onrender.com/webhook'),
 });
 
 // Load and parse the environment variables

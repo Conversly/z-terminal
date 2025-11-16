@@ -37,7 +37,7 @@ const DOC_EXTENSIONS = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx
 
 export const saveDatasources = async (
   userId: string,
-  chatbotId: number,
+  chatbotId: string,
   WebsiteURLs?: string[],
   Documents?: DocumentData[]
 ): Promise<DatasourceResponse> => {

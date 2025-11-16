@@ -81,7 +81,7 @@ export const getChatbots = catchAsync(
 export const deleteChatbot = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
     const input: DeleteChatbotInput = {
-      id: parseInt(req.params.id),
+      id: req.params.id,
     };
 
     const result = await handleDeleteChatbot(req.user.userId as string, input);
@@ -97,7 +97,7 @@ export const deleteChatbot = catchAsync(
 export const getChatbot = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
 
-    const result = await handleGetChatbot(parseInt(req.params.id));
+    const result = await handleGetChatbot(req.params.id);
 
     res.status(httpStatus.OK).json({
       success: true,
@@ -143,7 +143,7 @@ export const updateTopic = catchAsync(
 export const deleteTopic = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
     const input: DeleteTopicInput = {
-      id: parseInt(req.params.id),
+      id: req.params.id,
     };
 
     const result = await handleDeleteTopic(req.user.userId as string, input);
@@ -160,7 +160,7 @@ export const getTopic = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
     const topics = await handleGetTopic(
       req.user.userId as string,
-      parseInt(req.params.id)
+      req.params.id
     );
 
     res.status(httpStatus.OK).json({

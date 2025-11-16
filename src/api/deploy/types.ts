@@ -70,7 +70,7 @@ export interface ApiKeyGetResponse {
 
 // Domain Response Types
 export interface DomainInfo {
-    id: number;
+    id: string;
     domain: string;
     createdAt: Date | null;
 }
@@ -80,7 +80,7 @@ export interface AllowedDomainsResponse {
 }
 
 export interface AddDomainResponse {
-    id: number;
+    id: string;
     domain: string;
     createdAt: Date | null;
 }

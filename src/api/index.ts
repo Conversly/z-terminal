@@ -7,6 +7,7 @@ import analyticsRouter from './analytics/analytics-router';
 import deployRouter from './deploy/deploy-router';
 import setupRouter from './setup/setup-router';
 import activityRouter from './activity/activity-router';
+import whatsappRouter from './whatsapp/whatsapp-router';
 
 
 const routes = [
@@ -18,6 +19,7 @@ const routes = [
   { path: '/deploy', router: deployRouter },
   { path: '/setup', router: setupRouter },
   { path: '/activity', router: activityRouter },
+  { path: '/whatsapp', router: whatsappRouter },
 ];
 
 export default (): Router => {

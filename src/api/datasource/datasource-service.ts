@@ -22,8 +22,7 @@ export const handleProcessDatasource = async (
   TextContent?: string[]
 ): Promise<DatasourceResponse> => {
   try {
-    const parsedChatbotId = parseInt(chatbotId);
-    if (isNaN(parsedChatbotId)) {
+    if (!chatbotId) {
       throw new ApiError('Invalid chatbot ID', httpStatus.BAD_REQUEST);
     }
 
@@ -32,7 +31,7 @@ export const handleProcessDatasource = async (
       .from(chatBotsTable)
       .where(
         and(
-          eq(chatBotsTable.id, parsedChatbotId),
+          eq(chatBotsTable.id, chatbotId),
           eq(chatBotsTable.userId, userId)
         )
       )
@@ -54,7 +53,7 @@ export const handleProcessDatasource = async (
           .replace(/\/$/, ''); // remove trailing slash
         
         datasourcesToInsert.push({
-          chatbotId: parsedChatbotId,
+          chatbotId: chatbotId,
           type: 'URL' as const,
           sourceDetails: {},
           name: urlName || url,
@@ -68,7 +67,7 @@ export const handleProcessDatasource = async (
         const filename = doc.pathname.split('/').pop() || doc.pathname;
         
         datasourcesToInsert.push({
-          chatbotId: parsedChatbotId,
+          chatbotId: chatbotId,
           type: 'DOCUMENT' as const,
           sourceDetails: doc,
           name: filename,
@@ -85,7 +84,7 @@ export const handleProcessDatasource = async (
         const name = words.slice(0, 10).join(' ');
         
         datasourcesToInsert.push({
-          chatbotId: parsedChatbotId,
+          chatbotId: chatbotId,
           type: 'QNA' as const,
           sourceDetails: {},
           name: name,
@@ -102,7 +101,7 @@ export const handleProcessDatasource = async (
         const name = words.slice(0, 10).join(' ');
         
         datasourcesToInsert.push({
-          chatbotId: parsedChatbotId,
+          chatbotId: chatbotId,
           type: 'TXT' as const,
           sourceDetails: {},
           name: name,
@@ -230,8 +229,7 @@ export const handleProcessAndGenerateChatbot = async (
   TextContent?: string[]
 ): Promise<DatasourceResponse> => {
   try {
-    const parsedChatbotId = parseInt(chatbotId);
-    if (isNaN(parsedChatbotId)) {
+    if (!chatbotId) {
       throw new ApiError('Invalid chatbot ID', httpStatus.BAD_REQUEST);
     }
 
@@ -240,7 +238,7 @@ export const handleProcessAndGenerateChatbot = async (
       .from(chatBotsTable)
       .where(
         and(
-          eq(chatBotsTable.id, parsedChatbotId),
+          eq(chatBotsTable.id, chatbotId),
           eq(chatBotsTable.userId, userId)
         )
       )
@@ -262,7 +260,7 @@ export const handleProcessAndGenerateChatbot = async (
           .replace(/\/$/, ''); // remove trailing slash
         
         datasourcesToInsert.push({
-          chatbotId: parsedChatbotId,
+          chatbotId: chatbotId,
           type: 'URL' as const,
           sourceDetails: {},
           name: urlName || url,
@@ -276,7 +274,7 @@ export const handleProcessAndGenerateChatbot = async (
         const filename = doc.pathname.split('/').pop() || doc.pathname;
         
         datasourcesToInsert.push({
-          chatbotId: parsedChatbotId,
+          chatbotId: chatbotId,
           type: 'DOCUMENT' as const,
           sourceDetails: doc,
           name: filename,
@@ -293,7 +291,7 @@ export const handleProcessAndGenerateChatbot = async (
         const name = words.slice(0, 10).join(' ');
         
         datasourcesToInsert.push({
-          chatbotId: parsedChatbotId,
+          chatbotId: chatbotId,
           type: 'QNA' as const,
           sourceDetails: {},
           name: name,
@@ -310,7 +308,7 @@ export const handleProcessAndGenerateChatbot = async (
         const name = words.slice(0, 10).join(' ');
         
         datasourcesToInsert.push({
-          chatbotId: parsedChatbotId,
+          chatbotId: chatbotId,
           type: 'TXT' as const,
           sourceDetails: {},
           name: name,
@@ -340,8 +338,8 @@ export const handleProcessAndGenerateChatbot = async (
 
 export const handleDeleteKnowledge = async (
   userId: string,
-  chatbotId: number,
-  datasourceId: number
+  chatbotId: string,
+  datasourceId: string
 ): Promise<DeleteKnowledgeResponse> => {
   try {
     // First, verify the chatbot exists and belongs to the user
@@ -421,7 +419,7 @@ export const handleDeleteKnowledge = async (
 
 export const handleFetchDataSources = async (
   userId: string,
-  chatbotId: number
+  chatbotId: string
 ): Promise<FetchDataSourcesResponse> => {
   try {
     const chatbot = await db
@@ -472,8 +470,8 @@ export const handleFetchDataSources = async (
 
 export const handleAddCitation = async (
   userId: string,
-  chatbotId: number,
-  dataSourceId: number,
+  chatbotId: string,
+  dataSourceId: string,
   citation: string
 ): Promise<AddCitationResponse> => {
   try {
@@ -572,7 +570,7 @@ export const handleAddCitation = async (
 
 export const handleFetchEmbeddings = async (
   userId: string,
-  dataSourceId: number
+  dataSourceId: string
 ): Promise<FetchEmbeddingsResponse> => {
   try {
     // Step 1: Verify the datasource exists

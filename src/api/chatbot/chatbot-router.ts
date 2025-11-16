@@ -13,6 +13,10 @@ import {
     getTopic,
 } from './chatbot-controller';
 import {
+  getWhatsAppChats,
+  getWhatsAppContactMessages,
+} from '../whatsapp/whatsapp-controller';
+import {
   createChatbotSchema,
   generateInstructionSchema,
   chatbotInstructionsSchema,
@@ -65,6 +69,21 @@ app.get(
   auth,
   validate('params', getChatbotSchema),
   getTopic
+);
+
+// WhatsApp nested routes
+// GET /chatbot/:chatbotId/whatsapp/:whatsappId/chats - list all chats
+app.get(
+  '/:chatbotId/whatsapp/:whatsappId/chats',
+  auth,
+  getWhatsAppChats
+);
+
+// GET /chatbot/:chatbotId/whatsapp/:whatsappId/chats/:contactId - get messages for a contact
+app.get(
+  '/:chatbotId/whatsapp/:whatsappId/chats/:contactId',
+  auth,
+  getWhatsAppContactMessages
 );
 
 export default app;

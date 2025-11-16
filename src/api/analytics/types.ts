@@ -51,7 +51,7 @@ export interface GetChartsResponse {
 }
 
 export interface FeedbackItem {
-  convId: string;
+  convId: string | null;
   content: string;
   feedback: 'like' | 'dislike';
   feedbackComment: string | null;
@@ -71,7 +71,7 @@ export interface TopicSeriesPoint {
 }
 
 export interface TopicSeries {
-  topicId: number;
+  topicId: string;
   topicName: string;
   color: string | null;
   series: TopicSeriesPoint[];
@@ -88,7 +88,7 @@ export interface GetTopicBarChartResponse {
 }
 
 export interface TopicAggregate {
-  topicId: number;
+  topicId: string;
   topicName: string;
   color: string | null;
   messages: number;

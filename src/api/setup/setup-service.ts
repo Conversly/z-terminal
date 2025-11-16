@@ -49,7 +49,7 @@ export const handleInferPrompt = async (
         logoUrl,
         updatedAt: new Date(),
       })
-      .where(eq(chatBotsTable.id, parseInt(chatbotId)))
+      .where(eq(chatBotsTable.id, chatbotId))
       .returning();
 
     if (!updated) throw new ApiError('Chatbot not found', httpStatus.NOT_FOUND);
@@ -82,7 +82,7 @@ export const handleAnalyzeImage = async (
         primaryColor: color,
         updatedAt: new Date(),
       })
-      .where(eq(chatBotsTable.id, parseInt(chatbotId)))
+      .where(eq(chatBotsTable.id, chatbotId))
       .returning();
 
     if (!updated) throw new ApiError('Chatbot not found', httpStatus.NOT_FOUND);
@@ -104,8 +104,6 @@ export const handleSearchSources = async (
   try {
     const discovered = await discoverWebsiteUrls(websiteUrl, 100, 50);
 
-    const parsedChatbotId = parseInt(chatbotId);
-
     const totalUrls = discovered.urls.length;
     const totalPages = discovered.pages.length;
     const documents = totalUrls > 0 ? await buildPublicDocuments(discovered.files) : [];
@@ -113,11 +111,11 @@ export const handleSearchSources = async (
 
     let inserted = 0;
     if (totalUrls > 0) {
-      const res = await saveDatasources(userId, parsedChatbotId, discovered.pages, documents);
+      const res = await saveDatasources(userId, chatbotId, discovered.pages, documents);
       inserted = res.success ? (totalPages + totalFiles) : 0;
     }
 
-    const dataSources: DataSourceItem[] = await db
+    const dataSources = await db
       .select({
         id: dataSourcesTable.id,
         type: dataSourcesTable.type,
@@ -127,7 +125,7 @@ export const handleSearchSources = async (
         citation: dataSourcesTable.citation,
       })
       .from(dataSourcesTable)
-      .where(eq(dataSourcesTable.chatbotId, parsedChatbotId));
+      .where(eq(dataSourcesTable.chatbotId, chatbotId));
 
     return {
       success: true,
@@ -150,7 +148,7 @@ export const handleGenerateTopics = async (
   chatbotId: string,
   websiteUrl: string,
   useCase?: string
-): Promise<{ chatbotId: string; topics: { id: number; name: string; color: string }[] }> => {
+): Promise<{ chatbotId: string; topics: { id: string; name: string; color: string }[] }> => {
   try {
     const markdownRaw = await fetchAndConvertToMarkdown(websiteUrl);
     const markdown = markdownRaw.slice(0, 15000);
@@ -173,13 +171,12 @@ export const handleGenerateTopics = async (
       '#17a2b8', // cyan
     ];
 
-    const parsedChatbotId = parseInt(chatbotId);
     // Optional: ensure chatbot exists
-    const [bot] = await db.select().from(chatBotsTable).where(eq(chatBotsTable.id, parsedChatbotId)).limit(1);
+    const [bot] = await db.select().from(chatBotsTable).where(eq(chatBotsTable.id, chatbotId)).limit(1);
     if (!bot) throw new ApiError('Chatbot not found', httpStatus.NOT_FOUND);
 
     const values = topicNames.map((name) => ({
-      chatbotId: parsedChatbotId,
+      chatbotId,
       name,
       color: palette[Math.floor(Math.random() * palette.length)],
       createdAt: new Date(),
