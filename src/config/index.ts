@@ -21,7 +21,8 @@ const envSchema = yup.object().shape({
   GOOGLE_CLIENT_ID: yup.string().required(),
   GOOGLE_CLIENT_SECRET: yup.string().required(),
   GOOGLE_REDIRECT_URI: yup.string().required(),
-  GEMINI_API_KEY: yup.string().required(),
+  GEMINI_API_KEYS: yup.string().required(),
+  GEMINI_API_KEY: yup.string().optional(), // Kept for backward compatibility
   INGESTION_API: yup.string().required(),
   RESPONSE_API_BASE_URL: yup.string().default('http://localhost:8030'),
   FACEBOOK_APP_SECRET: yup.string().optional(),
