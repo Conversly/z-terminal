@@ -14,7 +14,7 @@ import { randomBytes } from 'crypto';
 
 // Helper function to verify chatbot ownership
 export const verifyChatbotOwnership = async (
-	chatbotId: number,
+	chatbotId: string,
 	userId: string
 ): Promise<typeof chatBotsTable.$inferSelect> => {
 	const chatbot = await db

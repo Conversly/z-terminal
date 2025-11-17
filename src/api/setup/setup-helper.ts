@@ -14,6 +14,7 @@ import { JSDOM } from "jsdom";
 import TurndownService from "turndown";
 import axios from 'axios';
 import env from '../../config';
+import { getGeminiKeyManager } from '../../shared/apikey-manager';
 
 
 /**
@@ -241,72 +242,88 @@ export async function inferBrandFromMarkdown(
   const systemInstruction = `You analyze a brand's public website content and propose defaults for a customer-facing AI chatbot. Return ONLY strict JSON with keys: systemPrompt, name, description, logoUrl. Do not include code fences or extra text.`;
   const prompt = `Website: ${websiteUrl}\nUse case: ${useCase || 'AI Assistant'}\n\nContent (markdown):\n${markdown}`;
 
-  if (!env.GEMINI_API_KEY) {
-    logger.error('GEMINI_API_KEY is not set in environment variables');
-    throw new ApiError('Gemini API key is not configured', httpStatus.INTERNAL_SERVER_ERROR);
-  }
+  const keyManager = getGeminiKeyManager();
+  const maxRetries = 3; // Try up to 3 different keys
+  let lastError: any = null;
 
-  let response;
-  try {
-    response = await axios.post(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
-      {
-        system_instruction: { parts: [{ text: systemInstruction }] },
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { response_mime_type: 'application/json' },
-      },
-      { 
-        headers: { 'x-goog-api-key': env.GEMINI_API_KEY, 'Content-Type': 'application/json' },
-        timeout: 30000, // 30 second timeout
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const apiKey = keyManager.getCurrentKey();
+    if (!apiKey) {
+      logger.error('No Gemini API keys available');
+      throw new ApiError('Gemini API key is not configured', httpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    let response;
+    try {
+      response = await axios.post(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+        {
+          system_instruction: { parts: [{ text: systemInstruction }] },
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { response_mime_type: 'application/json' },
+        },
+        { 
+          headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' },
+          timeout: 30000, // 30 second timeout
+        }
+      );
+
+      // Success - report it and process response
+      keyManager.reportSuccess(apiKey);
+
+      const textOut = response.data?.candidates?.[0]?.content?.parts?.[0]?.text as string | undefined;
+      if (!textOut) {
+        logger.error('Gemini API returned empty response:', response.data);
+        throw new ApiError('Failed to infer brand details: Empty response from Gemini API', httpStatus.INTERNAL_SERVER_ERROR);
       }
-    );
-  } catch (axiosError: any) {
-    logger.error('Error calling Gemini API for inferBrandFromMarkdown:', {
-      message: axiosError.message,
-      status: axiosError.response?.status,
-      statusText: axiosError.response?.statusText,
-      data: axiosError.response?.data,
-      code: axiosError.code,
-    });
+      let parsed: any;
+      try {
+        parsed = JSON.parse(textOut);
+      } catch (parseError) {
+        logger.error('Failed to parse Gemini API response as JSON:', { textOut, error: parseError });
+        throw new ApiError('Model returned non-JSON output', httpStatus.INTERNAL_SERVER_ERROR);
+      }
 
-    if (axiosError.response) {
-      // API returned an error response
-      const errorData = axiosError.response.data;
-      const errorMessage = errorData?.error?.message || errorData?.message || 'Gemini API error';
-      throw new ApiError(`Gemini API error: ${errorMessage}`, httpStatus.INTERNAL_SERVER_ERROR);
-    } else if (axiosError.request) {
-      // Request was made but no response received
-      throw new ApiError('No response from Gemini API. Please check your network connection.', httpStatus.INTERNAL_SERVER_ERROR);
-    } else {
-      // Error setting up the request
-      throw new ApiError(`Error calling Gemini API: ${axiosError.message}`, httpStatus.INTERNAL_SERVER_ERROR);
+      const systemPrompt: string = parsed.systemPrompt || parsed.system_prompt;
+      const name: string = parsed.name || '';
+      const description: string = parsed.description || '';
+      const logoUrl: string | undefined = parsed.logoUrl || parsed.logo_url || undefined;
+
+      if (!systemPrompt) {
+        logger.error('Missing systemPrompt in Gemini API response:', parsed);
+        throw new ApiError('Missing systemPrompt in model output', httpStatus.INTERNAL_SERVER_ERROR);
+      }
+
+      return { systemPrompt, name, description, logoUrl };
+    } catch (axiosError: any) {
+      lastError = axiosError;
+      logger.error(`Error calling Gemini API for inferBrandFromMarkdown (attempt ${attempt + 1}/${maxRetries}):`, {
+        message: axiosError.message,
+        status: axiosError.response?.status,
+        statusText: axiosError.response?.statusText,
+        data: axiosError.response?.data,
+        code: axiosError.code,
+      });
+
+      // Rotate to next key and try again (unless this was the last attempt)
+      if (attempt < maxRetries - 1) {
+        keyManager.rotateKey(apiKey, axiosError);
+        logger.info(`Rotating to next API key and retrying...`);
+        continue;
+      }
     }
   }
 
-  const textOut = response.data?.candidates?.[0]?.content?.parts?.[0]?.text as string | undefined;
-  if (!textOut) {
-    logger.error('Gemini API returned empty response:', response.data);
-    throw new ApiError('Failed to infer brand details: Empty response from Gemini API', httpStatus.INTERNAL_SERVER_ERROR);
+  // All retries exhausted
+  if (lastError?.response) {
+    const errorData = lastError.response.data;
+    const errorMessage = errorData?.error?.message || errorData?.message || 'Gemini API error';
+    throw new ApiError(`Gemini API error: ${errorMessage}`, httpStatus.INTERNAL_SERVER_ERROR);
+  } else if (lastError?.request) {
+    throw new ApiError('No response from Gemini API. Please check your network connection.', httpStatus.INTERNAL_SERVER_ERROR);
+  } else {
+    throw new ApiError(`Error calling Gemini API: ${lastError?.message || 'Unknown error'}`, httpStatus.INTERNAL_SERVER_ERROR);
   }
-  let parsed: any;
-  try {
-    parsed = JSON.parse(textOut);
-  } catch (parseError) {
-    logger.error('Failed to parse Gemini API response as JSON:', { textOut, error: parseError });
-    throw new ApiError('Model returned non-JSON output', httpStatus.INTERNAL_SERVER_ERROR);
-  }
-
-  const systemPrompt: string = parsed.systemPrompt || parsed.system_prompt;
-  const name: string = parsed.name || '';
-  const description: string = parsed.description || '';
-  const logoUrl: string | undefined = parsed.logoUrl || parsed.logo_url || undefined;
-
-  if (!systemPrompt) {
-    logger.error('Missing systemPrompt in Gemini API response:', parsed);
-    throw new ApiError('Missing systemPrompt in model output', httpStatus.INTERNAL_SERVER_ERROR);
-  }
-
-  return { systemPrompt, name, description, logoUrl };
 }
 
 export async function generateTopicsFromContent(
@@ -323,67 +340,83 @@ Use case: ${useCase || 'AI Assistant'}
 Public content (markdown excerpt):
 ${markdown}`;
 
-  if (!env.GEMINI_API_KEY) {
-    logger.error('GEMINI_API_KEY is not set in environment variables');
-    throw new ApiError('Gemini API key is not configured', httpStatus.INTERNAL_SERVER_ERROR);
-  }
+  const keyManager = getGeminiKeyManager();
+  const maxRetries = 3; // Try up to 3 different keys
+  let lastError: any = null;
 
-  let response;
-  try {
-    response = await axios.post(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
-      {
-        system_instruction: { parts: [{ text: systemInstruction }] },
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { response_mime_type: 'application/json' },
-      },
-      { 
-        headers: { 'x-goog-api-key': env.GEMINI_API_KEY, 'Content-Type': 'application/json' },
-        timeout: 30000, // 30 second timeout
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const apiKey = keyManager.getCurrentKey();
+    if (!apiKey) {
+      logger.error('No Gemini API keys available');
+      throw new ApiError('Gemini API key is not configured', httpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    let response;
+    try {
+      response = await axios.post(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+        {
+          system_instruction: { parts: [{ text: systemInstruction }] },
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { response_mime_type: 'application/json' },
+        },
+        { 
+          headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' },
+          timeout: 30000, // 30 second timeout
+        }
+      );
+
+      // Success - report it and process response
+      keyManager.reportSuccess(apiKey);
+
+      const textOut = response.data?.candidates?.[0]?.content?.parts?.[0]?.text as string | undefined;
+      if (!textOut) {
+        logger.error('Gemini API returned empty response for topics:', response.data);
+        throw new ApiError('Failed to generate topics: Empty response from Gemini API', httpStatus.INTERNAL_SERVER_ERROR);
       }
-    );
-  } catch (axiosError: any) {
-    logger.error('Error calling Gemini API for generateTopicsFromContent:', {
-      message: axiosError.message,
-      status: axiosError.response?.status,
-      statusText: axiosError.response?.statusText,
-      data: axiosError.response?.data,
-      code: axiosError.code,
-    });
+      let parsed: any;
+      try {
+        parsed = JSON.parse(textOut);
+      } catch (parseError) {
+        logger.error('Failed to parse Gemini API response as JSON for topics:', { textOut, error: parseError });
+        throw new ApiError('Model returned non-JSON output for topics', httpStatus.INTERNAL_SERVER_ERROR);
+      }
+      if (!Array.isArray(parsed)) {
+        logger.error('Gemini API did not return an array for topics:', parsed);
+        throw new ApiError('Model did not return an array of topics', httpStatus.INTERNAL_SERVER_ERROR);
+      }
+      const cleaned = parsed
+        .map((t: any) => (typeof t === 'string' ? t.trim() : ''))
+        .filter((t: string) => t.length > 0)
+        .slice(0, 10);
+      return Array.from(new Set(cleaned));
+    } catch (axiosError: any) {
+      lastError = axiosError;
+      logger.error(`Error calling Gemini API for generateTopicsFromContent (attempt ${attempt + 1}/${maxRetries}):`, {
+        message: axiosError.message,
+        status: axiosError.response?.status,
+        statusText: axiosError.response?.statusText,
+        data: axiosError.response?.data,
+        code: axiosError.code,
+      });
 
-    if (axiosError.response) {
-      // API returned an error response
-      const errorData = axiosError.response.data;
-      const errorMessage = errorData?.error?.message || errorData?.message || 'Gemini API error';
-      throw new ApiError(`Gemini API error: ${errorMessage}`, httpStatus.INTERNAL_SERVER_ERROR);
-    } else if (axiosError.request) {
-      // Request was made but no response received
-      throw new ApiError('No response from Gemini API. Please check your network connection.', httpStatus.INTERNAL_SERVER_ERROR);
-    } else {
-      // Error setting up the request
-      throw new ApiError(`Error calling Gemini API: ${axiosError.message}`, httpStatus.INTERNAL_SERVER_ERROR);
+      // Rotate to next key and try again (unless this was the last attempt)
+      if (attempt < maxRetries - 1) {
+        keyManager.rotateKey(apiKey, axiosError);
+        logger.info(`Rotating to next API key and retrying...`);
+        continue;
+      }
     }
   }
 
-  const textOut = response.data?.candidates?.[0]?.content?.parts?.[0]?.text as string | undefined;
-  if (!textOut) {
-    logger.error('Gemini API returned empty response for topics:', response.data);
-    throw new ApiError('Failed to generate topics: Empty response from Gemini API', httpStatus.INTERNAL_SERVER_ERROR);
+  // All retries exhausted
+  if (lastError?.response) {
+    const errorData = lastError.response.data;
+    const errorMessage = errorData?.error?.message || errorData?.message || 'Gemini API error';
+    throw new ApiError(`Gemini API error: ${errorMessage}`, httpStatus.INTERNAL_SERVER_ERROR);
+  } else if (lastError?.request) {
+    throw new ApiError('No response from Gemini API. Please check your network connection.', httpStatus.INTERNAL_SERVER_ERROR);
+  } else {
+    throw new ApiError(`Error calling Gemini API: ${lastError?.message || 'Unknown error'}`, httpStatus.INTERNAL_SERVER_ERROR);
   }
-  let parsed: any;
-  try {
-    parsed = JSON.parse(textOut);
-  } catch (parseError) {
-    logger.error('Failed to parse Gemini API response as JSON for topics:', { textOut, error: parseError });
-    throw new ApiError('Model returned non-JSON output for topics', httpStatus.INTERNAL_SERVER_ERROR);
-  }
-  if (!Array.isArray(parsed)) {
-    logger.error('Gemini API did not return an array for topics:', parsed);
-    throw new ApiError('Model did not return an array of topics', httpStatus.INTERNAL_SERVER_ERROR);
-  }
-  const cleaned = parsed
-    .map((t: any) => (typeof t === 'string' ? t.trim() : ''))
-    .filter((t: string) => t.length > 0)
-    .slice(0, 10);
-  return Array.from(new Set(cleaned));
 }

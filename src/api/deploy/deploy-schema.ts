@@ -54,7 +54,6 @@ const stylesSchema = yup.object().shape({
 export const deployWidgetSchema = yup.object().shape({
 	chatbotId: yup
 		.string()
-		.matches(/^\d+$/, 'Chatbot ID must be a valid number')
 		.required('Chatbot ID is required'),
 
 	partial: yup
@@ -78,7 +77,6 @@ export const addAllowedDomainSchema = yup.object().shape({
 export const fetchWidgetSchema = yup.object().shape({
 	chatbotId: yup
 		.string()
-		.matches(/^\d+$/, 'Chatbot ID must be a valid number')
 		.required('Chatbot ID is required'),
 });
 

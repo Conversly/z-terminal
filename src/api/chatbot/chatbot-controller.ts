@@ -12,6 +12,7 @@ import {
   handleCreateTopic,
   handleUpdateTopic,
   handleDeleteTopic,
+  handleGetTopics,
   handleGetTopic,
 } from './chatbot-service';
 import { CreateChatbotInput, GenerateInstructionsInput, DeleteChatbotInput, CreateTopicInput, UpdateTopicInput, DeleteTopicInput } from './types';
@@ -81,7 +82,7 @@ export const getChatbots = catchAsync(
 export const deleteChatbot = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
     const input: DeleteChatbotInput = {
-      id: parseInt(req.params.id),
+      id: req.params.id,
     };
 
     const result = await handleDeleteChatbot(req.user.userId as string, input);
@@ -97,7 +98,7 @@ export const deleteChatbot = catchAsync(
 export const getChatbot = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
 
-    const result = await handleGetChatbot(parseInt(req.params.id));
+    const result = await handleGetChatbot(req.params.id);
 
     res.status(httpStatus.OK).json({
       success: true,
@@ -143,7 +144,7 @@ export const updateTopic = catchAsync(
 export const deleteTopic = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
     const input: DeleteTopicInput = {
-      id: parseInt(req.params.id),
+      id: req.params.id,
     };
 
     const result = await handleDeleteTopic(req.user.userId as string, input);
@@ -156,16 +157,38 @@ export const deleteTopic = catchAsync(
   }
 );
 
-export const getTopic = catchAsync(
+export const getTopics = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
-    const topics = await handleGetTopic(
+    const chatbotId = req.params.chatbotId;
+    if (!chatbotId) {
+      return res.status(httpStatus.BAD_REQUEST).json({
+        success: false,
+        message: 'Chatbot ID is required',
+      });
+    }
+
+    const topics = await handleGetTopics(
       req.user.userId as string,
-      parseInt(req.params.id)
+      chatbotId
     );
 
     res.status(httpStatus.OK).json({
       success: true,
       data: topics,
+    });
+  }
+);
+
+export const getTopic = catchAsync(
+  async (req: jwtReq, res: Response, next: NextFunction) => {
+    const topic = await handleGetTopic(
+      req.user.userId as string,
+      req.params.id
+    );
+
+    res.status(httpStatus.OK).json({
+      success: true,
+      data: topic,
     });
   }
 );

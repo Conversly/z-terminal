@@ -68,9 +68,9 @@ export const deleteKnowledge = catchAsync(
 
 export const fetchDataSources = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
-    const chatbotId = parseInt(req.params.chatbotId);
+    const chatbotId = req.params.chatbotId;
 
-    if (isNaN(chatbotId)) {
+    if (!chatbotId) {
       return res.status(httpStatus.BAD_REQUEST).json({
         success: false,
         message: 'Invalid chatbot ID',
@@ -110,9 +110,9 @@ export const addCitation = catchAsync(
 
 export const fetchEmbeddings = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
-    const dataSourceId = parseInt(req.params.dataSourceId);
+    const dataSourceId = req.params.dataSourceId;
 
-    if (isNaN(dataSourceId)) {
+    if (!dataSourceId) {
       return res.status(httpStatus.BAD_REQUEST).json({
         success: false,
         message: 'Invalid data source ID',

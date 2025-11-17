@@ -6,7 +6,7 @@ import { handleGetSummary, handleGetCharts, handleGetFeedbacks, handleGetTopicBa
 
 export const getSummary = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
-    const chatbotId = parseInt(req.query.chatbotId as string);
+    const chatbotId = req.query.chatbotId as string;
     const result = await handleGetSummary(req.user.userId as string, chatbotId);
     res.status(httpStatus.OK).json({ success: result.success, data: result.data });
   }
@@ -14,7 +14,7 @@ export const getSummary = catchAsync(
 
 export const getCharts = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
-    const chatbotId = parseInt(req.query.chatbotId as string);
+    const chatbotId = req.query.chatbotId as string;
     const days = req.query.days ? parseInt(req.query.days as string) : 7;
     const result = await handleGetCharts(req.user.userId as string, chatbotId, days);
     res.status(httpStatus.OK).json({ success: result.success, data: result.data });
@@ -23,7 +23,7 @@ export const getCharts = catchAsync(
 
 export const getFeedbacks = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
-    const chatbotId = parseInt(req.query.chatbotId as string);
+    const chatbotId = req.query.chatbotId as string;
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 5;
     const result = await handleGetFeedbacks(req.user.userId as string, chatbotId, limit);
     res.status(httpStatus.OK).json({ success: result.success, data: result.data });
@@ -32,7 +32,7 @@ export const getFeedbacks = catchAsync(
 
 export const getTopicBarChart = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
-    const chatbotId = parseInt(req.query.chatbotId as string);
+    const chatbotId = req.query.chatbotId as string;
     const days = req.query.days ? parseInt(req.query.days as string) : 7;
     const result = await handleGetTopicBarChart(req.user.userId as string, chatbotId, days);
     res.status(httpStatus.OK).json({ success: result.success, data: result.data });
@@ -41,7 +41,7 @@ export const getTopicBarChart = catchAsync(
 
 export const getTopicPieChart = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
-    const chatbotId = parseInt(req.query.chatbotId as string);
+    const chatbotId = req.query.chatbotId as string;
     const days = req.query.days ? parseInt(req.query.days as string) : 7;
     const result = await handleGetTopicPieChart(req.user.userId as string, chatbotId, days);
     res.status(httpStatus.OK).json({ success: result.success, data: result.data });

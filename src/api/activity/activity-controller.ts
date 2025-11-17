@@ -6,9 +6,9 @@ import { handleGetChatlogs, handleGetMessages } from './activity-service';
 
 export const getChatlogs = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
-    const chatbotId = parseInt(req.query.chatbotId as string);
+    const chatbotId = req.query.chatbotId as string;
 
-    if (isNaN(chatbotId)) {
+    if (!chatbotId) {
       return res.status(httpStatus.BAD_REQUEST).json({
         success: false,
         message: 'Invalid chatbot ID',
@@ -29,10 +29,10 @@ export const getChatlogs = catchAsync(
 
 export const getMessages = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
-    const chatbotId = parseInt(req.query.chatbotId as string);
+    const chatbotId = req.query.chatbotId as string;
     const uniqueConvId = (req.query.uniqueConvId as string) || '';
 
-    if (isNaN(chatbotId) || !uniqueConvId) {
+    if (!chatbotId || !uniqueConvId) {
       return res.status(httpStatus.BAD_REQUEST).json({
         success: false,
         message: 'Invalid chatbot ID or uniqueConvId',

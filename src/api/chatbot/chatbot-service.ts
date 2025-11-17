@@ -10,6 +10,7 @@ import { CreateChatbotInput, ChatbotResponse, GenerateInstructionsInput, Instruc
 import axios from 'axios';
 import env from '../../config';
 import { eq } from 'drizzle-orm';
+import { getGeminiKeyManager } from '../../shared/apikey-manager';
 
 export const handleCreateChatbot = async (
   userId: string,
@@ -38,8 +39,10 @@ export const handleCreateChatbot = async (
 export const handleGenerateInstruction = async (
   input: GenerateInstructionsInput
 ): Promise<InstructionResponse> => {
-  try {
-    const systemPrompt = `
+  const keyManager = getGeminiKeyManager();
+  const maxRetries = 3;
+
+  const systemPrompt = `
         You are an AI assistant that helps users craft effective prompts for their AI chatbot, designed for customer support, website documentation assistance, technical support, and more. Your goal is to refine and enhance their input by making it clear, structured, and optimized for high-quality responses.
         
         # Guidelines for Improvement:
@@ -81,54 +84,77 @@ export const handleGenerateInstruction = async (
         - Tailor responses to be specific to the customer's needs and context.
     `;
 
-    const response = await axios.post(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
-      {
-        system_instruction: {
-          parts: [
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const apiKey = keyManager.getCurrentKey();
+    
+    if (!apiKey) {
+      throw new ApiError('No available API keys', httpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    try {
+      const response = await axios.post(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent',
+        {
+          system_instruction: {
+            parts: [
+              {
+                text: systemPrompt
+              }
+            ]
+          },
+          contents: [
             {
-              text: systemPrompt
+              parts: [
+                {
+                  text: input.topic
+                }
+              ]
             }
           ]
         },
-        contents: [
-          {
-            parts: [
-              {
-                text: input.topic
-              }
-            ]
+        {
+          headers: {
+            'x-goog-api-key': apiKey,
+            'Content-Type': 'application/json',
           }
-        ]
-      },
-      {
-        headers: {
-          'x-goog-api-key': env.GEMINI_API_KEY,
-          'Content-Type': 'application/json',
         }
-      }
-    );
-
-    const generatedPrompt = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!generatedPrompt) {
-      throw new ApiError('Failed to generate prompt from Gemini API', httpStatus.INTERNAL_SERVER_ERROR);
-    }
-
-    return {
-      chatbotId : '',  // Placeholder, as chatbotId is not generated yet 
-      systemPrompt: generatedPrompt
-    };
-  } catch (error) {
-    logger.error('Error getting instructions from Gemini:', error);
-    if (axios.isAxiosError(error)) {
-      throw new ApiError(
-        `Gemini API error: ${error.response?.data?.error?.message || error.message}`,
-        error.response?.status || httpStatus.INTERNAL_SERVER_ERROR
       );
+
+      const generatedPrompt = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (!generatedPrompt) {
+        throw new ApiError('Failed to generate prompt from Gemini API', httpStatus.INTERNAL_SERVER_ERROR);
+      }
+
+      // Report success to key manager
+      keyManager.reportSuccess(apiKey);
+
+      return {
+        chatbotId : '',  // Placeholder, as chatbotId is not generated yet 
+        systemPrompt: generatedPrompt
+      };
+    } catch (error) {
+      // Rotate key on failure
+      keyManager.rotateKey(apiKey, error);
+      
+      logger.warn(`Gemini API call failed (attempt ${attempt + 1}/${maxRetries}):`, error);
+      
+      // If this was the last attempt, throw the error
+      if (attempt === maxRetries - 1) {
+        logger.error('Error getting instructions from Gemini after all retries:', error);
+        if (axios.isAxiosError(error)) {
+          throw new ApiError(
+            `Gemini API error: ${error.response?.data?.error?.message || error.message}`,
+            error.response?.status || httpStatus.INTERNAL_SERVER_ERROR
+          );
+        }
+        throw new ApiError('Error getting instructions', httpStatus.INTERNAL_SERVER_ERROR);
+      }
     }
-    throw new ApiError('Error getting instructions', httpStatus.INTERNAL_SERVER_ERROR);
   }
+
+  // This should never be reached, but TypeScript needs it
+  throw new ApiError('Error getting instructions', httpStatus.INTERNAL_SERVER_ERROR);
 };
 
 
@@ -143,7 +169,7 @@ export const handleUpdateInstruction = async (
         systemPrompt: systemPrompt,
         updatedAt: new Date(),
       })
-      .where(eq(chatBotsTable.id, parseInt(chatbotId)))
+      .where(eq(chatBotsTable.id, chatbotId))
       .returning();
 
     if (!updatedChatbot) {
@@ -190,7 +216,7 @@ export const handleGetChatbots = async (
 
 
 export const handleGetChatbot = async (
-  chatbotId: number
+  chatbotId: string
 ): Promise<ChatbotResponse | null> => {
   try {
     const chatbot = await db
@@ -408,15 +434,16 @@ export const handleDeleteTopic = async (
   }
 };
 
-export const handleGetTopic = async (
+export const handleGetTopics = async (
   userId: string,
-  id: number
+  chatbotId: string
 ): Promise<TopicResponse[]> => {
   try {
+    // Verify chatbot ownership first
     const [chatbot] = await db
       .select()
       .from(chatBotsTable)
-      .where(eq(chatBotsTable.id, id))
+      .where(eq(chatBotsTable.id, chatbotId))
       .limit(1);
 
     if (!chatbot) {
@@ -435,14 +462,59 @@ export const handleGetTopic = async (
         createdAt: chatbotTopicsTable.createdAt,
       })
       .from(chatbotTopicsTable)
-      .where(eq(chatbotTopicsTable.chatbotId, id));
+      .where(eq(chatbotTopicsTable.chatbotId, chatbotId));
 
     return topics;
+  } catch (error) {
+    logger.error('Error fetching topics:', error);
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError('Error fetching topics', httpStatus.INTERNAL_SERVER_ERROR);
+  }
+};
+
+export const handleGetTopic = async (
+  userId: string,
+  id: string
+): Promise<TopicResponse> => {
+  try {
+    const [topic] = await db
+      .select({
+        id: chatbotTopicsTable.id,
+        chatbotId: chatbotTopicsTable.chatbotId,
+        name: chatbotTopicsTable.name,
+        color: chatbotTopicsTable.color,
+        createdAt: chatbotTopicsTable.createdAt,
+      })
+      .from(chatbotTopicsTable)
+      .where(eq(chatbotTopicsTable.id, id))
+      .limit(1);
+
+    if (!topic) {
+      throw new ApiError('Topic not found', httpStatus.NOT_FOUND);
+    }
+
+    // Verify chatbot ownership
+    const [chatbot] = await db
+      .select()
+      .from(chatBotsTable)
+      .where(eq(chatBotsTable.id, topic.chatbotId))
+      .limit(1);
+
+    if (!chatbot) {
+      throw new ApiError('Chatbot not found', httpStatus.NOT_FOUND);
+    }
+    if (chatbot.userId !== userId) {
+      throw new ApiError('Unauthorized: You do not own this chatbot', httpStatus.FORBIDDEN);
+    }
+
+    return topic;
   } catch (error) {
     logger.error('Error fetching topic:', error);
     if (error instanceof ApiError) {
       throw error;
     }
-    throw new ApiError('Error fetching topics', httpStatus.INTERNAL_SERVER_ERROR);
+    throw new ApiError('Error fetching topic', httpStatus.INTERNAL_SERVER_ERROR);
   }
 };

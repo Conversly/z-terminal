@@ -16,7 +16,8 @@ const documentSchema = yup.object().shape({
 });
 
 export const processRequestSchema = yup.object().shape({
-  chatbotId: yup.string().required('Chatbot ID is required'),
+  chatbotId: yup.string()
+    .required('Chatbot ID is required'),
   websiteUrls: yup.array().of(yup.string().required()).optional(),
   qandaData: yup.array().of(qaPairSchema).optional(),
   documents: yup.array().of(documentSchema).optional(),
@@ -24,30 +25,21 @@ export const processRequestSchema = yup.object().shape({
 });
 
 export const deleteKnowledgeSchema = yup.object().shape({
-  chatbotId: yup.number()
-    .integer('Chatbot ID must be an integer')
-    .positive('Chatbot ID must be positive')
+  chatbotId: yup.string()
     .required('Chatbot ID is required'),
-  datasourceId: yup.number()
-    .integer('Datasource ID must be an integer')
-    .positive('Datasource ID must be positive')
+  datasourceId: yup.string()
     .required('Datasource ID is required'),
 });
 
 export const fetchDataSourcesSchema = yup.object().shape({
   chatbotId: yup.string()
-    .matches(/^\d+$/, 'Chatbot ID must be a valid number')
     .required('Chatbot ID is required'),
 });
 
 export const addCitationSchema = yup.object().shape({
-  chatbotId: yup.number()
-    .integer('Chatbot ID must be an integer')
-    .positive('Chatbot ID must be positive')
+  chatbotId: yup.string()
     .required('Chatbot ID is required'),
-  dataSourceId: yup.number()
-    .integer('Data source ID must be an integer')
-    .positive('Data source ID must be positive')
+  dataSourceId: yup.string()
     .required('Data source ID is required'),
   citation: yup.string()
     .trim()
@@ -58,23 +50,18 @@ export const addCitationSchema = yup.object().shape({
 
 export const fetchEmbeddingsSchema = yup.object().shape({
   dataSourceId: yup.string()
-    .matches(/^\d+$/, 'Data source ID must be a valid number')
     .required('Data source ID is required'),
 });
 
 // Schema for ingestion service request
 const websiteUrlWithIdSchema = yup.object().shape({
-  datasourceId: yup.number()
-    .integer('Datasource ID must be an integer')
-    .positive('Datasource ID must be positive')
+  datasourceId: yup.string()
     .required('Datasource ID is required'),
   url: yup.string().url('Invalid URL format').required('URL is required'),
 });
 
 const documentWithIdSchema = yup.object().shape({
-  datasourceId: yup.number()
-    .integer('Datasource ID must be an integer')
-    .positive('Datasource ID must be positive')
+  datasourceId: yup.string()
     .required('Datasource ID is required'),
   url: yup.string().url('Invalid URL format').required('Document URL is required'),
   downloadUrl: yup.string().url('Invalid download URL format').required('Download URL is required'),
@@ -84,9 +71,7 @@ const documentWithIdSchema = yup.object().shape({
 });
 
 const qaPairWithIdSchema = yup.object().shape({
-  datasourceId: yup.number()
-    .integer('Datasource ID must be an integer')
-    .positive('Datasource ID must be positive')
+  datasourceId: yup.string()
     .required('Datasource ID is required'),
   question: yup.string().required('Question is required'),
   answer: yup.string().required('Answer is required'),
@@ -94,15 +79,14 @@ const qaPairWithIdSchema = yup.object().shape({
 });
 
 const textContentWithIdSchema = yup.object().shape({
-  datasourceId: yup.number()
-    .integer('Datasource ID must be an integer')
-    .positive('Datasource ID must be positive')
+  datasourceId: yup.string()
     .required('Datasource ID is required'),
   content: yup.string().required('Text content is required'),
 });
 
 export const ingestionRequestSchema = yup.object().shape({
-  chatbotId: yup.string().required('Chatbot ID is required'),
+  chatbotId: yup.string()
+    .required('Chatbot ID is required'),
   websiteUrls: yup.array().of(websiteUrlWithIdSchema).optional(),
   documents: yup.array().of(documentWithIdSchema).optional(),
   qandaData: yup.array().of(qaPairWithIdSchema).optional(),

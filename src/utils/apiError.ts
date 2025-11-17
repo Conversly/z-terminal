@@ -8,7 +8,7 @@ class ApiError extends Error {
     super(message);
 
     this.statusCode = statusCode;
-    this.success = `${statusCode}`.startsWith('4') ? false : true;
+    this.success = statusCode >= 200 && statusCode < 300;
     this.isOperational = true;
     this.data = data;
 

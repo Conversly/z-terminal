@@ -18,44 +18,34 @@ export const chatbotInstructionsSchema = yup.object().shape({
 });
 
 export const deleteChatbotSchema = yup.object().shape({
-  id: yup.number()
-    .required('Chatbot ID is required')
-    .positive('Chatbot ID must be a positive number')
-    .integer('Chatbot ID must be an integer'),
+  id: yup.string()
+    .required('Chatbot ID is required'),
 });
 
 export const getChatbotSchema = yup.object().shape({
-  id: yup.number()
-    .required('Chatbot ID is required')
-    .positive('Chatbot ID must be a positive number')
-    .integer('Chatbot ID must be an integer'),
+  id: yup.string()
+    .required('Chatbot ID is required'),
 });
 
 // Topics
 export const createTopicSchema = yup.object().shape({
   chatbotId: yup
-    .number()
-    .required('Chatbot ID is required')
-    .positive('Chatbot ID must be a positive number')
-    .integer('Chatbot ID must be an integer'),
+    .string()
+    .required('Chatbot ID is required'),
   name: yup.string().required('Topic name is required').min(1, 'Name must not be empty'),
 });
 
 export const topicIdParamsSchema = yup.object().shape({
   id: yup
-    .number()
-    .required('Topic ID is required')
-    .positive('Topic ID must be a positive number')
-    .integer('Topic ID must be an integer'),
+    .string()
+    .required('Topic ID is required'),
 });
 
 export const updateTopicBodySchema = yup
   .object()
   .shape({
-    id: yup.number()
-      .required('Topic ID is required')
-      .positive('Topic ID must be a positive number')
-      .integer('Topic ID must be an integer'),
+    id: yup.string()
+      .required('Topic ID is required'),
     name: yup.string().optional().min(1, 'Name must not be empty')
   })
   .test('at-least-one', 'Provide at least one field to update', (value) => {

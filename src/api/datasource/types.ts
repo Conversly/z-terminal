@@ -25,7 +25,7 @@ export interface ProcessRequest {
 export interface DatasourceResponse {
   success: boolean;
   insertedCount: number;
-  datasourceIds: number[];
+  datasourceIds: string[];
 }
 
 export interface DeleteKnowledgeResponse {
@@ -34,7 +34,7 @@ export interface DeleteKnowledgeResponse {
 }
 
 export interface DataSourceItem {
-  id: number;
+  id: string;
   type: string;
   name: string;
   sourceDetails: any;
@@ -48,8 +48,8 @@ export interface FetchDataSourcesResponse {
 }
 
 export interface AddCitationRequest {
-  chatbotId: number;
-  dataSourceId: number;
+  chatbotId: string;
+  dataSourceId: string;
   citation: string;
 }
 
@@ -57,14 +57,14 @@ export interface AddCitationResponse {
   success: boolean;
   message: string;
   data: {
-    id: number;
+    id: string;
     citation: string;
     updatedEmbeddingsCount: number;
   };
 }
 
 export interface EmbeddingItem {
-  id: number;
+  id: string;
   text: string;
 }
 

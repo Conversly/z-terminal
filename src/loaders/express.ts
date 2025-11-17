@@ -76,6 +76,8 @@ export default ({ app }: { app: express.Application }): void => {
 
   app.set('trust proxy', 1);
 
+  // Note: WhatsApp webhook middleware removed - webhooks are now handled by standalone service
+
   app.use(bodyParser.json());
 
   app.use(apiPrefix, routes());

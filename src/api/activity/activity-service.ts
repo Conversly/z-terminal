@@ -9,7 +9,7 @@ import { verifyChatbotOwnership } from '../../shared/helper-queries';
 
 export const handleGetChatlogs = async (
   userId: string,
-  chatbotId: number
+  chatbotId: string
 ): Promise<GetChatlogsResponse> => {
   try {
     // Verify chatbot ownership
@@ -56,7 +56,7 @@ export const handleGetChatlogs = async (
 
 export const handleGetMessages = async (
   userId: string,
-  chatbotId: number,
+  chatbotId: string,
   uniqueConvId: string
 ): Promise<GetMessagesResponse> => {
   try {
