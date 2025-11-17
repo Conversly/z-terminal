@@ -10,12 +10,16 @@ import {
   handleSendWhatsAppMessage,
   handleGetWhatsAppChats,
   handleGetWhatsAppContactMessages,
+  handleCreateWhatsAppContact,
+  handleGetWhatsAppAnalytics,
+  handleGetWhatsAppAnalyticsPerDay,
 } from './whatsapp-service';
 import {
   CreateWhatsAppIntegrationInput,
   UpdateWhatsAppIntegrationInput,
   SendWhatsAppMessageInput,
   WhatsAppWebhookPayload,
+  CreateWhatsAppContactInput,
 } from './types';
 import env from '../../config';
 import logger from '../../loaders/logger';
@@ -79,7 +83,7 @@ export const getWhatsAppIntegration = catchAsync(
     );
 
     if (!integration) {
-      res.status(httpStatus.NOT_FOUND).json({
+      res.status(httpStatus.OK).json({
         success: false,
         message: 'WhatsApp integration not found',
         data: null,
@@ -157,6 +161,7 @@ export const getWhatsAppChats = catchAsync(
       return res.status(httpStatus.BAD_REQUEST).json({
         success: false,
         message: 'Invalid chatbot ID or WhatsApp ID',
+        data: { success: false, data: [] },
       });
     }
 
@@ -168,7 +173,7 @@ export const getWhatsAppChats = catchAsync(
 
     res.status(httpStatus.OK).json({
       success: result.success,
-      data: result.data,
+      data: result,
     });
   }
 );
@@ -184,6 +189,7 @@ export const getWhatsAppContactMessages = catchAsync(
       return res.status(httpStatus.BAD_REQUEST).json({
         success: false,
         message: 'Invalid chatbot ID, WhatsApp ID, or contact ID',
+        data: { success: false, data: [] },
       });
     }
 
@@ -196,7 +202,101 @@ export const getWhatsAppContactMessages = catchAsync(
 
     res.status(httpStatus.OK).json({
       success: result.success,
-      data: result.data,
+      data: result,
+    });
+  }
+);
+
+// Create WhatsApp contact
+export const createWhatsAppContact = catchAsync(
+  async (req: jwtReq, res: Response, next: NextFunction) => {
+    const chatbotId = req.params.chatbotId as string;
+    const whatsappId = req.params.whatsappId as string;
+
+    if (!chatbotId || !whatsappId) {
+      return res.status(httpStatus.BAD_REQUEST).json({
+        success: false,
+        message: 'Invalid chatbot ID or WhatsApp ID',
+      });
+    }
+
+    const input: CreateWhatsAppContactInput = {
+      phoneNumber: req.body.phoneNumber,
+      displayName: req.body.displayName,
+    };
+
+    const contact = await handleCreateWhatsAppContact(
+      req.user.userId as string,
+      chatbotId,
+      whatsappId,
+      input
+    );
+
+    res.status(httpStatus.CREATED).json({
+      success: true,
+      message: 'Contact added successfully',
+      data: {
+        id: contact.id,
+        phoneNumber: contact.phoneNumber,
+        displayName: contact.displayName,
+        userMetadata: contact.userMetadata,
+      },
+    });
+  }
+);
+
+// Get WhatsApp Analytics
+export const getWhatsAppAnalytics = catchAsync(
+  async (req: jwtReq, res: Response, next: NextFunction) => {
+    const chatbotId = req.params.chatbotId as string;
+    const whatsappId = req.params.whatsappId as string;
+
+    if (!chatbotId || !whatsappId) {
+      return res.status(httpStatus.BAD_REQUEST).json({
+        success: false,
+        message: 'Invalid chatbot ID or WhatsApp ID',
+      });
+    }
+
+    const analytics = await handleGetWhatsAppAnalytics(
+      req.user.userId as string,
+      chatbotId,
+      whatsappId
+    );
+
+    res.status(httpStatus.OK).json({
+      success: true,
+      message: 'Analytics retrieved successfully',
+      data: analytics,
+    });
+  }
+);
+
+// Get WhatsApp Analytics Per Day
+export const getWhatsAppAnalyticsPerDay = catchAsync(
+  async (req: jwtReq, res: Response, next: NextFunction) => {
+    const chatbotId = req.params.chatbotId as string;
+    const whatsappId = req.params.whatsappId as string;
+    const days = parseInt(req.query.days as string) || 30;
+
+    if (!chatbotId || !whatsappId) {
+      return res.status(httpStatus.BAD_REQUEST).json({
+        success: false,
+        message: 'Invalid chatbot ID or WhatsApp ID',
+      });
+    }
+
+    const result = await handleGetWhatsAppAnalyticsPerDay(
+      req.user.userId as string,
+      chatbotId,
+      whatsappId,
+      days
+    );
+
+    res.status(httpStatus.OK).json({
+      success: true,
+      message: 'Analytics per day retrieved successfully',
+      data: result,
     });
   }
 );

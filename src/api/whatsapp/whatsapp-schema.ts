@@ -73,3 +73,14 @@ export const sendMessageSchema = yup.object().shape({
     .max(4096, 'Message is too long (max 4096 characters)'),
 });
 
+export const createWhatsAppContactSchema = yup.object().shape({
+  phoneNumber: yup
+    .string()
+    .required('Phone number is required')
+    .matches(/^\+?[1-9]\d{1,14}$/, 'Phone number must be in E.164 format (e.g., +1234567890)'),
+  displayName: yup
+    .string()
+    .optional()
+    .max(255, 'Display name must not exceed 255 characters'),
+});
+

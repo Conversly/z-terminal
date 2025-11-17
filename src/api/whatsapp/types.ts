@@ -10,6 +10,7 @@ export interface WhatsAppCredentials {
 export interface CreateWhatsAppIntegrationInput {
   chatbotId: string; // UUID
   phoneNumberId: string;
+  phoneNumber?: string; // Optional, defaults to phoneNumberId if not provided
   accessToken: string;
   verifyToken: string;
   webhookSecret?: string; // Facebook App Secret for webhook verification
@@ -149,5 +150,45 @@ export interface SendWhatsAppMessageResponse {
   success: boolean;
   messageId?: string;
   error?: string;
+}
+
+export interface CreateWhatsAppContactInput {
+  phoneNumber: string; // E.164 format (e.g., +1234567890)
+  displayName?: string;
+}
+
+export interface WhatsAppContactResponse {
+  id: string;
+  chatbotId: string;
+  phoneNumber: string;
+  displayName?: string | null;
+  userMetadata: any;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+}
+
+export interface WhatsAppAnalyticsResponse {
+  totalMessages: number;
+  totalContacts: number;
+  activeConversations: number;
+  userMessages: number;
+  aiResponses: number;
+  agentResponses: number;
+  uniqueWhatsappConversations: number;
+  uniqueContacts: number;
+}
+
+export interface WhatsAppAnalyticsPerDayItem {
+  date: string;
+  userMessages: number;
+  aiResponses: number;
+  agentResponses: number;
+  uniqueWhatsappConversations: number;
+  uniqueContacts: number;
+}
+
+export interface WhatsAppAnalyticsPerDayResponse {
+  success: boolean;
+  data: WhatsAppAnalyticsPerDayItem[];
 }
 

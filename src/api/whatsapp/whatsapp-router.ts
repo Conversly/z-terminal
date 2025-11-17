@@ -6,6 +6,11 @@ import {
   getWhatsAppIntegration,
   deleteWhatsAppIntegration,
   sendMessage,
+  getWhatsAppChats,
+  getWhatsAppContactMessages,
+  createWhatsAppContact,
+  getWhatsAppAnalytics,
+  getWhatsAppAnalyticsPerDay,
 } from './whatsapp-controller';
 import {
   createWhatsAppIntegrationSchema,
@@ -13,6 +18,7 @@ import {
   getWhatsAppIntegrationSchema,
   deleteWhatsAppIntegrationSchema,
   sendMessageSchema,
+  createWhatsAppContactSchema,
 } from './whatsapp-schema';
 
 const app = express.Router();
@@ -57,6 +63,42 @@ app.post(
   validate('query', getWhatsAppIntegrationSchema),
   validate('body', sendMessageSchema),
   sendMessage
+);
+
+// Get WhatsApp chats (list of contacts)
+app.get(
+  '/chats/:chatbotId/:whatsappId',
+  auth,
+  getWhatsAppChats
+);
+
+// Get messages for a specific contact
+app.get(
+  '/chats/:chatbotId/:whatsappId/:contactId',
+  auth,
+  getWhatsAppContactMessages
+);
+
+// Create WhatsApp contact
+app.post(
+  '/contacts/:chatbotId/:whatsappId',
+  auth,
+  validate('body', createWhatsAppContactSchema),
+  createWhatsAppContact
+);
+
+// Get WhatsApp Analytics
+app.get(
+  '/analytics/:chatbotId/:whatsappId',
+  auth,
+  getWhatsAppAnalytics
+);
+
+// Get WhatsApp Analytics Per Day
+app.get(
+  '/analytics/per-day/:chatbotId/:whatsappId',
+  auth,
+  getWhatsAppAnalyticsPerDay
 );
 
 export default app;
