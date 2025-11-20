@@ -14,9 +14,11 @@ async function startServer() {
 
   await loadGoogleOAuthClient();
 
+  const port = Number(env.PORT) || 8020;
+  
   const server = app
-    .listen(env.PORT, () => {
-      logger.info(`🛡️  Server listening on port: ${env.PORT} 🛡️`);
+    .listen(port, '0.0.0.0', () => {
+      logger.info(`🛡️  Server listening on port: ${port} 🛡️`);
     })
     .on('error', (err) => {
       logger.error(err);
