@@ -5,8 +5,6 @@ import {
   chatBots,
   dataSources,
   embeddings,
-  analytics,
-  citations,
   messages,
   widgetConfig,
   chatbotTopics,
@@ -42,8 +40,6 @@ export const chatBotsRelations = relations(chatBots, ({ one, many }) => ({
   }),
   dataSources: many(dataSources),
   embeddings: many(embeddings),
-  analytics: one(analytics),
-  citations: many(citations),
   messages: many(messages),
   widgetConfig: one(widgetConfig),
   topics: many(chatbotTopics),
@@ -75,25 +71,6 @@ export const embeddingsRelations = relations(embeddings, ({ one }) => ({
   dataSource: one(dataSources, {
     fields: [embeddings.dataSourceId],
     references: [dataSources.id],
-  }),
-}));
-
-export const analyticsRelations = relations(analytics, ({ one, many }) => ({
-  chatBot: one(chatBots, {
-    fields: [analytics.chatbotId],
-    references: [chatBots.id],
-  }),
-  citations: many(citations),
-}));
-
-export const citationsRelations = relations(citations, ({ one }) => ({
-  analytics: one(analytics, {
-    fields: [citations.analyticsId],
-    references: [analytics.id],
-  }),
-  chatBot: one(chatBots, {
-    fields: [citations.chatbotId],
-    references: [chatBots.id],
   }),
 }));
 

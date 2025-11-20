@@ -175,7 +175,9 @@ export const handleGenerateTopics = async (
     const [bot] = await db.select().from(chatBotsTable).where(eq(chatBotsTable.id, chatbotId)).limit(1);
     if (!bot) throw new ApiError('Chatbot not found', httpStatus.NOT_FOUND);
 
-    const values = topicNames.map((name) => ({
+    const allTopicNames = [...topicNames, 'other'];
+
+    const values = allTopicNames.map((name) => ({
       chatbotId,
       name,
       color: palette[Math.floor(Math.random() * palette.length)],

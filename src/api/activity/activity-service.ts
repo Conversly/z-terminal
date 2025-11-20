@@ -37,7 +37,7 @@ export const handleGetChatlogs = async (
       LIMIT 50
     `);
 
-    const rows = (result as any).rows as Array<{ uniqueConvId: string; firstUserMessage: string | null; lastActivity: Date | string }>; 
+    const rows = (result as any).rows as Array<{ uniqueConvId: string; firstUserMessage: string | null; lastActivity: Date | string }>;
 
     return {
       success: true,

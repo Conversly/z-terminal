@@ -8,6 +8,7 @@ import deployRouter from './deploy/deploy-router';
 import setupRouter from './setup/setup-router';
 import activityRouter from './activity/activity-router';
 import whatsappRouter from './whatsapp/whatsapp-router';
+import actionRouter from './actions/action-router';
 
 
 const routes = [
@@ -20,6 +21,7 @@ const routes = [
   { path: '/setup', router: setupRouter },
   { path: '/activity', router: activityRouter },
   { path: '/whatsapp', router: whatsappRouter },
+  { path: '/actions', router: actionRouter },
 ];
 
 export default (): Router => {
