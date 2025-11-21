@@ -48,9 +48,8 @@ export default ({ app }: { app: express.Application }): void => {
   app.use(cookieParser());
 
   app.use(rateLimiter);
-
   app.get('/', (req, res) => {
-    return res.send(
+    return res.status(200).send(
       "What are you doing here? 🧐 Go to <a href='https://dev.verlyai.xyz/'>Magic Link!!</a>"
     );
   });
