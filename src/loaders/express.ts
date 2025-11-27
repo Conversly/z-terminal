@@ -54,7 +54,7 @@ export default ({ app }: { app: express.Application }): void => {
     );
   });
 
-  app.get('/healthcheck', (req, res) => {
+  app.get('/health', (req, res) => {
     const healthcheck = {
       statusCode: 200,
       success: true,
