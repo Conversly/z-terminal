@@ -17,6 +17,11 @@ export interface EmailPasswordAuthResponse {
   refreshToken: string;
 }
 
+export interface RegisterResponse {
+  success: boolean;
+  message: string;
+}
+
 export interface EmailPasswordLoginRequest {
   email: string;
   password: string;

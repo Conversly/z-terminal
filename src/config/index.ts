@@ -27,6 +27,9 @@ const envSchema = yup.object().shape({
   RESPONSE_API_BASE_URL: yup.string().default('http://localhost:8030'),
   FACEBOOK_APP_SECRET: yup.string().optional(),
   WHATSAPP_WEBHOOK_URL: yup.string().default('https://webhook-wa-mcnp.onrender.com/webhook'),
+  SMTP_USER: yup.string().required('SMTP_USER is required'),
+  SMTP_PASS: yup.string().required('SMTP_PASS is required'),
+  SMTP_VERIFY_URL: yup.string().default('https://dev.verlyai.xyz'),
 });
 
 // Load and parse the environment variables

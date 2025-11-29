@@ -100,6 +100,8 @@ export const user = pgTable(
         displayName: text('display_name').notNull(),
         avatarUrl: text('avatar_url'),
         username: text('username'),
+        isEmailVerified: boolean('is_email_verified').default(false).notNull(),
+        verificationToken: text('verification_token'),
     }
 );
 

@@ -6,6 +6,7 @@ import {
   handleRefreshToken,
   handleEmailPasswordLogin,
   handleEmailPasswordRegister,
+  verifyEmail as verifyEmailService,
 } from './auth-service';
 import { setAuthCookies } from './auth-helper';
 import { jwtCookieOptions } from '../../shared/helper';
@@ -122,14 +123,12 @@ export const getSystemTime = catchAsync(async (req: Request, res: Response) => {
 
 export const emailPasswordRegister = catchAsync(async (req: Request, res: Response) => {
   const response = await handleEmailPasswordRegister(req.body);
-  const origin = req.headers.origin || req.headers.referer || '';
 
-  const responseData = setAuthCookies(res, response, origin);
+  // No cookies to set for register anymore as we don't log them in automatically
 
   res.status(httpStatus.CREATED).json({
     success: true,
-    message: 'Registration successful',
-    data: responseData,
+    message: response.message,
   });
 });
 
@@ -143,5 +142,23 @@ export const emailPasswordLogin = catchAsync(async (req: Request, res: Response)
     success: true,
     message: 'Login successful',
     data: responseData,
+  });
+});
+
+export const verifyEmail = catchAsync(async (req: Request, res: Response) => {
+  const token = req.query.token as string;
+
+  if (!token) {
+    return res.status(httpStatus.BAD_REQUEST).json({
+      success: false,
+      message: 'Verification token is required',
+    });
+  }
+
+  await verifyEmailService(token);
+
+  res.status(httpStatus.OK).json({
+    success: true,
+    message: 'Email verified successfully. You can now login.',
   });
 });

@@ -21,10 +21,12 @@ import {
   EmailPasswordAuthResponse,
   EmailPasswordLoginRequest,
   EmailPasswordRegisterRequest,
+  RegisterResponse,
 } from './auth-types';
 import { uuid as uuidv4 } from 'uuidv4';
 import { uniqueUsernameGenerator } from 'unique-username-generator';
 import { usernameGeneratorConfig } from '../../utils/constants';
+import { sendVerificationEmail } from '../../services/email-service';
 
 export const handleGoogleOauth = async (data: {
   isVerify: boolean;
@@ -39,7 +41,7 @@ export const handleGoogleOauth = async (data: {
   );
 
   let existingAuth;
-  
+
   try {
     existingAuth = await db
       .select()
@@ -124,7 +126,7 @@ export const handleRefreshToken = (
 
 export const handleEmailPasswordRegister = async (
   data: EmailPasswordRegisterRequest,
-): Promise<EmailPasswordAuthResponse> => {
+): Promise<RegisterResponse> => {
   const { email, password, displayName } = data;
 
   try {
@@ -144,10 +146,11 @@ export const handleEmailPasswordRegister = async (
     // Hash the password
     const passwordHash = await hashPassword(password);
     const newUserId = uuidv4();
+    const verificationToken = uuidv4();
 
     // Create user and auth method in a transaction
-    const userData = await db.transaction(async (tx) => {
-      const [newUser] = await tx
+    await db.transaction(async (tx) => {
+      await tx
         .insert(userTable)
         .values({
           id: newUserId,
@@ -155,8 +158,9 @@ export const handleEmailPasswordRegister = async (
           email: email,
           displayName: displayName || email.split('@')[0],
           username: uniqueUsernameGenerator(usernameGeneratorConfig),
-        })
-        .returning();
+          isEmailVerified: false,
+          verificationToken: verificationToken,
+        });
 
       await tx.insert(authMethodTable).values({
         id: uuidv4(),
@@ -166,29 +170,20 @@ export const handleEmailPasswordRegister = async (
         passwordHash: passwordHash,
         provider: 'EMAIL_PASSWORD',
       });
-
-      return newUser;
     });
 
-    // Generate tokens
-    const tokenPayload = {
-      userId: userData.id,
-      lastLogin: new Date(),
-    };
+    // Send verification email
+    await sendVerificationEmail(email, verificationToken);
 
-    const { accessToken, refreshToken } = generateTokenPair(tokenPayload);
-
-    logger.info('User registered with email/password:', userData.id);
+    logger.info('User registered, verification email sent:', newUserId);
 
     return {
-      isNewUser: true,
-      userId: userData.id,
-      accessToken: accessToken!,
-      refreshToken: refreshToken!,
+      success: true,
+      message: 'Registration successful. Please check your email to verify your account.',
     };
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    
+
     logger.error('Database error during email/password registration:', error);
     throw new ApiError(
       'Failed to create user account. Please try again later.',
@@ -245,6 +240,14 @@ export const handleEmailPasswordLogin = async (
       );
     }
 
+    // Check if email is verified
+    if (!userData.isEmailVerified) {
+      throw new ApiError(
+        'Email not verified. Please check your email for the verification link.',
+        httpStatus.UNAUTHORIZED,
+      );
+    }
+
     // Generate tokens
     const tokenPayload = {
       userId: userData.id,
@@ -263,10 +266,42 @@ export const handleEmailPasswordLogin = async (
     };
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    
+
     logger.error('Database error during email/password login:', error);
     throw new ApiError(
       'Login failed. Please try again later.',
+      httpStatus.SERVICE_UNAVAILABLE,
+    );
+  }
+};
+
+export const verifyEmail = async (token: string): Promise<void> => {
+  try {
+    const users = await db
+      .select()
+      .from(userTable)
+      .where(eq(userTable.verificationToken, token));
+
+    if (users.length === 0) {
+      throw new ApiError('Invalid or expired verification token', httpStatus.BAD_REQUEST);
+    }
+
+    const user = users[0];
+
+    await db
+      .update(userTable)
+      .set({
+        isEmailVerified: true,
+        verificationToken: null,
+      })
+      .where(eq(userTable.id, user.id));
+
+    logger.info('Email verified for user:', user.id);
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    logger.error('Error verifying email:', error);
+    throw new ApiError(
+      'Failed to verify email. Please try again later.',
       httpStatus.SERVICE_UNAVAILABLE,
     );
   }

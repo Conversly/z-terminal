@@ -39,3 +39,10 @@ Strategy deletion: When you delete a strategy, the preset it references will NOT
 Order deletion: When you delete a strategy, the orders that reference it will have their strategy_id set to NULL (due to ON DELETE SET NULL).
 we will have to send a event to lightning orders to cancel those orders.
 # z-terminal
+
+
+
+
+
+
+kixt adrg lcki zcpg
