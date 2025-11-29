@@ -11,12 +11,20 @@ import logger from '../../loaders/logger';
 import {
   handleNewOauthUser,
   verifyGoogleCredentials,
+  hashPassword,
+  verifyPassword,
 } from './auth-helper';
 
 import {
   GoogleAuthResponse,
   RefreshTokenResponse,
+  EmailPasswordAuthResponse,
+  EmailPasswordLoginRequest,
+  EmailPasswordRegisterRequest,
 } from './auth-types';
+import { uuid as uuidv4 } from 'uuidv4';
+import { uniqueUsernameGenerator } from 'unique-username-generator';
+import { usernameGeneratorConfig } from '../../utils/constants';
 
 export const handleGoogleOauth = async (data: {
   isVerify: boolean;
@@ -112,4 +120,154 @@ export const handleRefreshToken = (
     accessToken,
     refreshToken,
   };
+};
+
+export const handleEmailPasswordRegister = async (
+  data: EmailPasswordRegisterRequest,
+): Promise<EmailPasswordAuthResponse> => {
+  const { email, password, displayName } = data;
+
+  try {
+    // Check if user with this email already exists in the user table
+    const existingUser = await db
+      .select()
+      .from(userTable)
+      .where(eq(userTable.email, email));
+
+    if (existingUser.length > 0) {
+      throw new ApiError(
+        'An account with this email already exists',
+        httpStatus.CONFLICT,
+      );
+    }
+
+    // Hash the password
+    const passwordHash = await hashPassword(password);
+    const newUserId = uuidv4();
+
+    // Create user and auth method in a transaction
+    const userData = await db.transaction(async (tx) => {
+      const [newUser] = await tx
+        .insert(userTable)
+        .values({
+          id: newUserId,
+          updatedAt: new Date().toISOString(),
+          email: email,
+          displayName: displayName || email.split('@')[0],
+          username: uniqueUsernameGenerator(usernameGeneratorConfig),
+        })
+        .returning();
+
+      await tx.insert(authMethodTable).values({
+        id: uuidv4(),
+        updatedAt: new Date().toISOString(),
+        userId: newUserId,
+        email: email,
+        passwordHash: passwordHash,
+        provider: 'EMAIL_PASSWORD',
+      });
+
+      return newUser;
+    });
+
+    // Generate tokens
+    const tokenPayload = {
+      userId: userData.id,
+      lastLogin: new Date(),
+    };
+
+    const { accessToken, refreshToken } = generateTokenPair(tokenPayload);
+
+    logger.info('User registered with email/password:', userData.id);
+
+    return {
+      isNewUser: true,
+      userId: userData.id,
+      accessToken: accessToken!,
+      refreshToken: refreshToken!,
+    };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    
+    logger.error('Database error during email/password registration:', error);
+    throw new ApiError(
+      'Failed to create user account. Please try again later.',
+      httpStatus.SERVICE_UNAVAILABLE,
+    );
+  }
+};
+
+export const handleEmailPasswordLogin = async (
+  data: EmailPasswordLoginRequest,
+): Promise<EmailPasswordAuthResponse> => {
+  const { email, password } = data;
+
+  try {
+    // Find user by email
+    const existingAuth = await db
+      .select()
+      .from(authMethodTable)
+      .where(eq(authMethodTable.email, email))
+      .innerJoin(userTable, eq(authMethodTable.userId, userTable.id));
+
+    if (existingAuth.length === 0) {
+      throw new ApiError(
+        'Invalid email or password',
+        httpStatus.UNAUTHORIZED,
+      );
+    }
+
+    const authMethod = existingAuth[0].auth_method;
+    const userData = existingAuth[0].user;
+
+    // Verify provider is EMAIL_PASSWORD
+    if (authMethod.provider !== 'EMAIL_PASSWORD') {
+      throw new ApiError(
+        'This email is registered with a different authentication method',
+        httpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Verify password
+    if (!authMethod.passwordHash) {
+      throw new ApiError(
+        'Password not set for this account',
+        httpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    const isPasswordValid = await verifyPassword(password, authMethod.passwordHash);
+
+    if (!isPasswordValid) {
+      throw new ApiError(
+        'Invalid email or password',
+        httpStatus.UNAUTHORIZED,
+      );
+    }
+
+    // Generate tokens
+    const tokenPayload = {
+      userId: userData.id,
+      lastLogin: new Date(),
+    };
+
+    const { accessToken, refreshToken } = generateTokenPair(tokenPayload);
+
+    logger.info('User logged in with email/password:', userData.id);
+
+    return {
+      isNewUser: false,
+      userId: userData.id,
+      accessToken: accessToken!,
+      refreshToken: refreshToken!,
+    };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    
+    logger.error('Database error during email/password login:', error);
+    throw new ApiError(
+      'Login failed. Please try again later.',
+      httpStatus.SERVICE_UNAVAILABLE,
+    );
+  }
 };

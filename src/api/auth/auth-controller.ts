@@ -4,6 +4,8 @@ import { Request, Response } from 'express';
 import {
   handleGoogleOauth,
   handleRefreshToken,
+  handleEmailPasswordLogin,
+  handleEmailPasswordRegister,
 } from './auth-service';
 import { setAuthCookies } from './auth-helper';
 import { jwtCookieOptions } from '../../shared/helper';
@@ -115,5 +117,31 @@ export const getSystemTime = catchAsync(async (req: Request, res: Response) => {
     data: {
       systemTime: Date.now(),
     },
+  });
+});
+
+export const emailPasswordRegister = catchAsync(async (req: Request, res: Response) => {
+  const response = await handleEmailPasswordRegister(req.body);
+  const origin = req.headers.origin || req.headers.referer || '';
+
+  const responseData = setAuthCookies(res, response, origin);
+
+  res.status(httpStatus.CREATED).json({
+    success: true,
+    message: 'Registration successful',
+    data: responseData,
+  });
+});
+
+export const emailPasswordLogin = catchAsync(async (req: Request, res: Response) => {
+  const response = await handleEmailPasswordLogin(req.body);
+  const origin = req.headers.origin || req.headers.referer || '';
+
+  const responseData = setAuthCookies(res, response, origin);
+
+  res.status(httpStatus.OK).json({
+    success: true,
+    message: 'Login successful',
+    data: responseData,
   });
 });

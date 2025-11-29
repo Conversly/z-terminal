@@ -6,13 +6,21 @@ import {
   getSystemTime,
   initiateGoogleAuth,
   googleOAuthCallback,
+  emailPasswordLogin,
+  emailPasswordRegister,
 } from './auth-controller';
 import { validate } from '../../shared/middleware';
 import {
   googleOauthSchema,
+  emailPasswordLoginSchema,
+  emailPasswordRegisterSchema,
 } from './auth-schema';
 
 const app = express.Router();
+
+// Email/Password authentication
+app.post('/register', validate('body', emailPasswordRegisterSchema), emailPasswordRegister);
+app.post('/login', validate('body', emailPasswordLoginSchema), emailPasswordLogin);
 
 // google oauth method
 app.post('/google-oauth', validate('body', googleOauthSchema), googleOauth);

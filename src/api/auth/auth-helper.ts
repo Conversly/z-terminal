@@ -18,6 +18,7 @@ import {
 } from './auth-types';
 import { uniqueUsernameGenerator } from 'unique-username-generator';
 import { usernameGeneratorConfig } from '../../utils/constants';
+import * as bcrypt from 'bcryptjs';
 
 export const setAuthCookies = (
   res: Response,
@@ -133,4 +134,27 @@ export const handleNewOauthUser = async (
       httpStatus.INTERNAL_SERVER_ERROR,
     );
   }
+};
+
+/**
+ * Hash a password using bcrypt
+ * @param password - Plain text password to hash
+ * @returns Hashed password
+ */
+export const hashPassword = async (password: string): Promise<string> => {
+  const saltRounds = 10;
+  return await bcrypt.hash(password, saltRounds);
+};
+
+/**
+ * Verify a password against a hash
+ * @param password - Plain text password to verify
+ * @param hash - Hashed password to compare against
+ * @returns True if password matches, false otherwise
+ */
+export const verifyPassword = async (
+  password: string,
+  hash: string,
+): Promise<boolean> => {
+  return await bcrypt.compare(password, hash);
 };

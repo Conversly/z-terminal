@@ -29,6 +29,7 @@ export const authProvider = pgEnum('AuthProvider', [
     'PHANTOM_WALLET',
     'GOOGLE_OAUTH',
     'EMAIL',
+    'EMAIL_PASSWORD',
 ]);
 
 
@@ -118,6 +119,7 @@ export const authMethod = pgTable(
         googleEmail: text('google_email'),
         provider: authProvider().notNull(),
         email: text(),
+        passwordHash: text('password_hash'),
     },
     (table) => [
         uniqueIndex('auth_method_google_email_key').using(
