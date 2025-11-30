@@ -9,7 +9,7 @@ import setupRouter from './setup/setup-router';
 import activityRouter from './activity/activity-router';
 import whatsappRouter from './whatsapp/whatsapp-router';
 import actionRouter from './actions/action-router';
-
+import voiceRouter from './voice/voice-router';
 
 const routes = [
   { path: '/auth', router: authRouter },
@@ -22,6 +22,7 @@ const routes = [
   { path: '/activity', router: activityRouter },
   { path: '/whatsapp', router: whatsappRouter },
   { path: '/actions', router: actionRouter },
+  { path: '/voice', router: voiceRouter },
 ];
 
 export default (): Router => {
