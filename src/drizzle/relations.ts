@@ -16,6 +16,9 @@ import {
   subscribedUsers,
   analyticsPerDay,
   whataappAnalyticsPerDay,
+  voiceConfig,
+  voiceWidgetConfig,
+  voiceCallSession,
 } from './schema';
 
 export const userRelations = relations(user, ({ many, one }) => ({
@@ -49,6 +52,7 @@ export const chatBotsRelations = relations(chatBots, ({ one, many }) => ({
   originDomains: many(originDomains),
   analyticsPerDay: many(analyticsPerDay),
   whatsappAnalyticsPerDay: many(whataappAnalyticsPerDay),
+  voiceConfigs: many(voiceConfig),
 }));
 
 export const dataSourcesRelations = relations(dataSources, ({ one, many }) => ({
@@ -163,5 +167,31 @@ export const whatsappAnalyticsPerDayRelations = relations(whataappAnalyticsPerDa
   chatBot: one(chatBots, {
     fields: [whataappAnalyticsPerDay.chatbotId],
     references: [chatBots.id],
+  }),
+}));
+
+export const voiceConfigRelations = relations(voiceConfig, ({ one, many }) => ({
+  chatbot: one(chatBots, {
+    fields: [voiceConfig.chatbotId],
+    references: [chatBots.id],
+  }),
+  widgetConfig: one(voiceWidgetConfig, {
+    fields: [voiceConfig.id],
+    references: [voiceWidgetConfig.voiceConfigId],
+  }),
+  sessions: many(voiceCallSession),
+}));
+
+export const voiceWidgetConfigRelations = relations(voiceWidgetConfig, ({ one }) => ({
+  voiceConfig: one(voiceConfig, {
+    fields: [voiceWidgetConfig.voiceConfigId],
+    references: [voiceConfig.id],
+  }),
+}));
+
+export const voiceCallSessionRelations = relations(voiceCallSession, ({ one }) => ({
+  voiceConfig: one(voiceConfig, {
+    fields: [voiceCallSession.voiceConfigId],
+    references: [voiceConfig.id],
   }),
 }));
