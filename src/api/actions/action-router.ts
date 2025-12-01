@@ -25,6 +25,37 @@ import {
 
 const router = express.Router();
 
+// Normalize incoming apiConfig/config keys (camelCase -> snake_case) before validation
+function normalizeApiConfigMiddleware(req: any, res: any, next: any) {
+  try {
+    const raw = req.body?.apiConfig || req.body?.config;
+    if (!raw) return next();
+
+    const normalized = {
+      method: raw.method,
+      base_url: raw.base_url || raw.baseUrl || raw.baseURL,
+      endpoint: raw.endpoint,
+      headers: raw.headers || {},
+      query_params: raw.query_params || raw.queryParams || {},
+      body_template: raw.body_template || raw.bodyTemplate || raw.body,
+      response_mapping: raw.response_mapping || raw.responseMapping,
+      success_codes: raw.success_codes || raw.successCodes,
+      timeout_seconds: raw.timeout_seconds || raw.timeoutSeconds,
+      retry_count: raw.retry_count || raw.retryCount,
+      auth_type: raw.auth_type || raw.authType,
+      auth_value: raw.auth_value || raw.authValue,
+      follow_redirects: raw.follow_redirects ?? raw.followRedirects ?? true,
+      verify_ssl: raw.verify_ssl ?? raw.verifySsl ?? true,
+    };
+
+    // set both keys so validation for either schema works
+    req.body.apiConfig = normalized;
+    req.body.config = normalized;
+  } catch (e) {
+    // ignore and continue — validation will catch issues
+  }
+  return next();
+}
 /**
  * Create a new custom action
  * POST /api/v1/actions/create
@@ -32,6 +63,7 @@ const router = express.Router();
 router.post(
   '/create',
   auth,
+  normalizeApiConfigMiddleware,
   validate('body', createCustomActionSchema),
   createCustomAction
 );
@@ -65,6 +97,7 @@ router.post(
 router.post(
   '/update',
   auth,
+  normalizeApiConfigMiddleware,
   validate('body', updateCustomActionSchema),
   updateCustomAction
 );
@@ -98,6 +131,7 @@ router.post(
 router.post(
   '/test',
   auth,
+  normalizeApiConfigMiddleware,
   validate('body', testActionSchema),
   testCustomAction
 );
