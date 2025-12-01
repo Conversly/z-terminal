@@ -908,3 +908,120 @@ export const voiceCallSession = pgTable(
         index('voice_call_session_room_name_idx').using('btree', table.roomName.asc().nullsLast()),
     ]
 );
+
+// product launches table
+export const productLaunches = pgTable(
+    'product_launches',
+    {
+        id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+        
+        userId: text('user_id')
+            .notNull()
+            .references(() => user.id, { onUpdate: 'cascade', onDelete: 'cascade' }),
+        
+        // Basic Product Info
+        name: text('name').notNull(),
+        tagline: text('tagline'),
+        description: text('description'),
+        logoUrl: text('logo_url'),
+        websiteUrl: text('website_url'),
+        launchDate: timestamp('launch_date', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
+        
+        // Chatbot Integration (floating widget only)
+        chatbotId: text('chatbot_id')
+            .references(() => chatBots.id, { onUpdate: 'cascade', onDelete: 'set null' }),
+        
+        // Product Metadata
+        tags: json('tags').$type<string[]>().default(sql`ARRAY[]::text[]`),
+        likesCount: integer('likes_count').default(0).notNull(),
+        keyFeatures: json('key_features').$type<string[]>().default(sql`ARRAY[]::text[]`),
+        
+        // Customization
+        theme: json('theme').$type<{
+            primaryColor?: string;
+            backgroundColor?: string;
+            textColor?: string;
+            fontFamily?: string;
+            layout?: string;
+            heroStyle?: string;
+            cardStyle?: string;
+            accentColor?: string;
+            gradient?: string;
+        }>().default(sql`'{}'::json`),
+        
+        // Media Gallery
+        media: json('media').$type<Array<{
+            id: string;
+            type: 'image' | 'video';
+            url: string;
+            thumbnailUrl?: string;
+            alt?: string;
+        }>>().default(sql`'[]'::json`),
+        
+        // Team Members
+        team: json('team').$type<Array<{
+            id: string;
+            name: string;
+            role: string;
+            avatarUrl?: string;
+            socials?: {
+                twitter?: string;
+                linkedin?: string;
+                github?: string;
+                website?: string;
+            };
+        }>>().default(sql`'[]'::json`),
+        
+        // Comments (threaded)
+        comments: json('comments').$type<Array<{
+            id: string;
+            author: {
+                name: string;
+                avatarUrl?: string;
+                username?: string;
+                isMaker?: boolean;
+                badge?: string;
+            };
+            content: string;
+            createdAt: string;
+            upvotes: number;
+            replies: Array<any>;
+        }>>().default(sql`'[]'::json`),
+        
+        // Announcement Banner
+        announcement: json('announcement').$type<{
+            enabled?: boolean;
+            text?: string;
+            link?: string;
+            emoji?: string;
+            backgroundColor?: string;
+            textColor?: string;
+            showCountdown?: boolean;
+        }>().default(sql`'{}'::json`),
+        
+        // Countdown Timer
+        countdown: json('countdown').$type<{
+            enabled?: boolean;
+            targetDate?: string;
+            title?: string;
+        }>().default(sql`'{}'::json`),
+        
+        // Social Links
+        socialLinks: json('social_links').$type<{
+            twitter?: string;
+            github?: string;
+            discord?: string;
+            youtube?: string;
+            website?: string;
+        }>().default(sql`'{}'::json`),
+        
+        createdAt: timestamp('created_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
+        updatedAt: timestamp('updated_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
+    },
+    (table) => [
+        index('product_launches_user_id_idx').using('btree', table.userId.asc().nullsLast()),
+        index('product_launches_chatbot_id_idx').using('btree', table.chatbotId.asc().nullsLast()),
+        index('product_launches_launch_date_idx').using('btree', table.launchDate.desc().nullsLast()),
+        index('product_launches_likes_count_idx').using('btree', table.likesCount.desc().nullsLast()),
+    ]
+);
