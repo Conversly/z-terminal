@@ -30,7 +30,7 @@ const envSchema = yup.object().shape({
   SMTP_USER: yup.string().required('shashanktyagiji12345@gmail.com'),
   SMTP_PASS: yup.string().required('kixt adrg lcki zcpg'),
   SMTP_VERIFY_URL: yup.string().default('https://dev.verlyai.xyz'),
-  BLOB_READ_WRITE_TOKEN: yup.string().required(),
+  BLOB_READ_WRITE_TOKEN: yup.string().default(''),
 });
 
 // Load and parse the environment variables
