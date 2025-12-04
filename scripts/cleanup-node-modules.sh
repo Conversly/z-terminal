@@ -89,12 +89,14 @@ find . -name "CHANGELOG*" -type f -delete 2>/dev/null || true
 find . -name "HISTORY*" -type f -delete 2>/dev/null || true
 find . -name "CHANGES*" -type f -delete 2>/dev/null || true
 
-# Remove yarn/npm artifacts
+# Remove yarn/npm/bun artifacts
 echo "  → Removing package manager artifacts..."
 find . -name ".yarn-integrity" -type f -delete 2>/dev/null || true
 find . -name ".package-lock.json" -type f -delete 2>/dev/null || true
 find . -name "yarn.lock" -type f -delete 2>/dev/null || true
 find . -name "package-lock.json" -type f -delete 2>/dev/null || true
+find . -name "bun.lockb" -type f -delete 2>/dev/null || true
+find . -name ".bun" -type d -exec rm -rf {} + 2>/dev/null || true
 
 # Remove .d.ts files (TypeScript declarations) - keep only @types
 echo "  → Removing TypeScript declarations..."

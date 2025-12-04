@@ -77,9 +77,6 @@ export default ({ app }: { app: express.Application }): void => {
 
   // Note: WhatsApp webhook middleware removed - webhooks are now handled by standalone service
 
-  // Serve uploaded files statically
-  app.use('/uploads', express.static('uploads'));
-
   app.use(bodyParser.json());
 
   app.use(apiPrefix, routes());

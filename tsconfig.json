@@ -16,7 +16,9 @@
     "skipLibCheck": true,
     "strict": true,
     "removeComments": true,
-    "declaration": false
+    "declaration": false,
+    "types": ["bun-types"]
+
   },
   "include": ["./src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.spec.ts", "**/*.test.ts"]

@@ -2,17 +2,8 @@ import httpStatus from 'http-status';
 import ApiError from '../../utils/apiError';
 import logger from '../../loaders/logger';
 import path from 'path';
-import fs from 'fs';
 import { createId } from '@paralleldrive/cuid2';
 import { put } from '@vercel/blob';
-
-const UPLOAD_DIR = path.join(process.cwd(), 'uploads');
-const USE_VERCEL_BLOB = !!process.env.BLOB_READ_WRITE_TOKEN;
-
-// Ensure upload directory exists (for local storage)
-if (!USE_VERCEL_BLOB && !fs.existsSync(UPLOAD_DIR)) {
-    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-}
 
 export const handleFileUpload = async (
     fileBuffer: Buffer,
@@ -58,39 +49,21 @@ export const handleFileUpload = async (
         const uniqueId = createId();
         const fileName = `${uniqueId}${fileExtension}`;
 
-        // Upload to Vercel Blob or local storage
-        if (USE_VERCEL_BLOB) {
-            logger.info('Uploading to Vercel Blob:', fileName);
-            
-            const blob = await put(fileName, fileBuffer, {
-                access: 'public',
-                contentType: contentType,
-                addRandomSuffix: false,
-            });
+        // Upload to Vercel Blob
+        logger.info('Uploading to Vercel Blob:', fileName);
 
-            return {
-                url: blob.url,
-                pathname: blob.pathname,
-                contentType: contentType,
-                contentDisposition: `inline; filename="${originalFilename}"`,
-            };
-        } else {
-            // Local storage fallback
-            logger.info('Uploading to local storage:', fileName);
-            
-            const filePath = path.join(UPLOAD_DIR, fileName);
-            fs.writeFileSync(filePath, fileBuffer);
+        const blob = await put(fileName, fileBuffer, {
+            access: 'public',
+            contentType: contentType,
+            addRandomSuffix: false,
+        });
 
-            const baseUrl = process.env.BASE_URL || 'http://localhost:8020';
-            const fileUrl = `${baseUrl}/uploads/${fileName}`;
-
-            return {
-                url: fileUrl,
-                pathname: `/uploads/${fileName}`,
-                contentType: contentType,
-                contentDisposition: `inline; filename="${originalFilename}"`,
-            };
-        }
+        return {
+            url: blob.url,
+            pathname: blob.pathname,
+            contentType: contentType,
+            contentDisposition: `inline; filename="${originalFilename}"`,
+        };
     } catch (error) {
         if (error instanceof ApiError) throw error;
         logger.error('Error uploading file:', error);
