@@ -5,9 +5,11 @@ import {
     updateVoiceConfig,
     deleteVoiceConfig,
     getVoiceWidgetConfig,
-    getVoiceCallSessions
+    getVoiceCallSessions,
+    generateVoiceToken
 } from './voice-controller';
 import { updateVoiceConfigSchema, chatbotIdParamsSchema } from './voice-schema';
+import { voiceTokenRequestSchema } from './livekit-schema';
 
 const router = express.Router();
 
@@ -42,6 +44,15 @@ router.get(
     auth,
     validate('params', chatbotIdParamsSchema),
     getVoiceCallSessions
+);
+
+// LiveKit Voice Token Generation
+router.post(
+    '/:chatbotId/token',
+    auth,
+    validate('params', chatbotIdParamsSchema),
+    validate('body', voiceTokenRequestSchema),
+    generateVoiceToken
 );
 
 export default router;
