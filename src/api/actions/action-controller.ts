@@ -30,14 +30,35 @@ import {
  */
 export const createCustomAction = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
+    function normalizeApiConfig(raw: any) {
+      if (!raw) return raw;
+      return {
+        method: raw.method,
+        base_url: raw.base_url || raw.baseUrl || raw.baseURL,
+        endpoint: raw.endpoint,
+        headers: raw.headers || {},
+        query_params: raw.query_params || raw.queryParams || {},
+        body_template: raw.body_template || raw.bodyTemplate || raw.body,
+        response_mapping: raw.response_mapping || raw.responseMapping,
+        success_codes: raw.success_codes || raw.successCodes,
+        timeout_seconds: raw.timeout_seconds || raw.timeoutSeconds,
+        retry_count: raw.retry_count || raw.retryCount,
+        auth_type: raw.auth_type || raw.authType,
+        auth_value: raw.auth_value || raw.authValue,
+        follow_redirects: raw.follow_redirects ?? raw.followRedirects ?? true,
+        verify_ssl: raw.verify_ssl ?? raw.verifySsl ?? true,
+      };
+    }
+
     const input: CreateCustomActionInput = {
       chatbotId: req.body.chatbotId,
       name: req.body.name,
       displayName: req.body.displayName,
       description: req.body.description,
-      apiConfig: req.body.apiConfig,
+      apiConfig: normalizeApiConfig(req.body.apiConfig),
       parameters: req.body.parameters,
     };
+    console.log('input', input);
 
     const action = await handleCreateCustomAction(req.user.userId as string, input);
 
@@ -102,11 +123,31 @@ export const updateCustomAction = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
     const { chatbotId, actionId, ...updates } = req.body;
 
+    function normalizeApiConfig(raw: any) {
+      if (!raw) return raw;
+      return {
+        method: raw.method,
+        base_url: raw.base_url || raw.baseUrl || raw.baseURL,
+        endpoint: raw.endpoint,
+        headers: raw.headers || {},
+        query_params: raw.query_params || raw.queryParams || {},
+        body_template: raw.body_template || raw.bodyTemplate || raw.body,
+        response_mapping: raw.response_mapping || raw.responseMapping,
+        success_codes: raw.success_codes || raw.successCodes,
+        timeout_seconds: raw.timeout_seconds || raw.timeoutSeconds,
+        retry_count: raw.retry_count || raw.retryCount,
+        auth_type: raw.auth_type || raw.authType,
+        auth_value: raw.auth_value || raw.authValue,
+        follow_redirects: raw.follow_redirects ?? raw.followRedirects ?? true,
+        verify_ssl: raw.verify_ssl ?? raw.verifySsl ?? true,
+      };
+    }
+
     const input: UpdateCustomActionInput = {
       name: updates.name,
       displayName: updates.displayName,
       description: updates.description,
-      apiConfig: updates.apiConfig,
+      apiConfig: normalizeApiConfig(updates.apiConfig),
       parameters: updates.parameters,
     };
 
@@ -173,8 +214,28 @@ export const testCustomAction = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
     const { chatbotId, config, testParameters } = req.body;
 
+    function normalizeApiConfig(raw: any) {
+      if (!raw) return raw;
+      return {
+        method: raw.method,
+        base_url: raw.base_url || raw.baseUrl || raw.baseURL,
+        endpoint: raw.endpoint,
+        headers: raw.headers || {},
+        query_params: raw.query_params || raw.queryParams || {},
+        body_template: raw.body_template || raw.bodyTemplate || raw.body,
+        response_mapping: raw.response_mapping || raw.responseMapping,
+        success_codes: raw.success_codes || raw.successCodes,
+        timeout_seconds: raw.timeout_seconds || raw.timeoutSeconds,
+        retry_count: raw.retry_count || raw.retryCount,
+        auth_type: raw.auth_type || raw.authType,
+        auth_value: raw.auth_value || raw.authValue,
+        follow_redirects: raw.follow_redirects ?? raw.followRedirects ?? true,
+        verify_ssl: raw.verify_ssl ?? raw.verifySsl ?? true,
+      };
+    }
+
     const input: TestActionInput = {
-      config,
+      config: normalizeApiConfig(config),
       testParameters,
     };
 
