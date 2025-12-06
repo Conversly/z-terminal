@@ -6,7 +6,7 @@ FROM oven/bun:latest AS deps
 WORKDIR /app
 
 # Copy package files (Bun uses bun.lockb if available, otherwise works with package.json)
-COPY package.json bun.lockb* yarn.lock* ./
+COPY package.json bun.lock* bun.lockb* yarn.lock* ./
 
 # Copy cleanup script
 COPY scripts/cleanup-node-modules.sh ./
@@ -27,7 +27,7 @@ FROM oven/bun:latest AS builder
 WORKDIR /app
 
 # Copy package files
-COPY package.json bun.lockb* yarn.lock* ./
+COPY package.json bun.lock* bun.lockb* yarn.lock* ./
 
 # Install ALL dependencies (needed for building)
 RUN bun install --frozen-lockfile
