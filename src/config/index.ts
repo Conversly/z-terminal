@@ -31,6 +31,11 @@ const envSchema = yup.object().shape({
   SMTP_PASS: yup.string().required('kixt adrg lcki zcpg'),
   SMTP_VERIFY_URL: yup.string().default('https://dev.verlyai.xyz'),
   BLOB_READ_WRITE_TOKEN: yup.string().default(''),
+  // LiveKit Voice Services
+  LIVEKIT_URL: yup.string().optional(),
+  LIVEKIT_API_KEY: yup.string().optional(),
+  LIVEKIT_API_SECRET: yup.string().optional(),
+  LIVEKIT_AGENT_NAME: yup.string().optional().default('voice-assistant'),
 });
 
 // Load and parse the environment variables

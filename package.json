@@ -34,6 +34,7 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
+    "@livekit/protocol": "^1.43.4",
     "@paralleldrive/cuid2": "^3.0.4",
     "@types/nodemailer": "^7.0.4",
     "@vercel/blob": "^2.0.0",
@@ -52,6 +53,7 @@
     "http-status": "^1.7.4",
     "jsdom": "^27.2.0",
     "jsonwebtoken": "^9.0.2",
+    "livekit-server-sdk": "^2.14.2",
     "morgan": "^1.10.0",
     "node-vibrant": "^4.0.3",
     "nodemailer": "^7.0.11",
