@@ -269,6 +269,103 @@ export const handleDeleteWhatsAppIntegration = async (
   }
 };
 
+export const handleMarkMessagesAsRead = async (
+  userId: string,
+  chatbotId: string,
+  messageIds: string[]
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    // Verify chatbot ownership and get integration
+    const chatbot = await db
+      .select()
+      .from(chatBotsTable)
+      .where(and(eq(chatBotsTable.id, chatbotId), eq(chatBotsTable.userId, userId)))
+      .limit(1)
+      .then((r) => r[0]);
+
+    if (!chatbot) {
+      throw new ApiError('Chatbot not found or does not belong to user', httpStatus.NOT_FOUND);
+    }
+
+    const integration = await db
+      .select()
+      .from(whatsappAccountsTable)
+      .where(eq(whatsappAccountsTable.chatbotId, chatbotId))
+      .limit(1)
+      .then((r) => r[0]);
+
+    if (!integration) {
+      throw new ApiError('WhatsApp integration not found', httpStatus.NOT_FOUND);
+    }
+
+    if (!messageIds || messageIds.length === 0) {
+      throw new ApiError('At least one message ID is required', httpStatus.BAD_REQUEST);
+    }
+
+    // Mark each message as read via Meta API
+    const apiVersion = process.env.WHATSAPP_API_VERSION || 'v20.0';
+    const url = `https://graph.facebook.com/${apiVersion}/${integration.phoneNumberId}/messages`;
+    let successCount = 0;
+    const errors: string[] = [];
+
+    for (const messageId of messageIds) {
+      try {
+        const payload = {
+          messaging_product: 'whatsapp',
+          status: 'read',
+          message_id: messageId,
+        };
+
+        await axios.post(url, payload, {
+          headers: {
+            Authorization: `Bearer ${integration.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        // Update message status in database
+        await db
+          .update(messagesTable)
+          .set({
+            channelMessageMetadata: sql`jsonb_set(
+              COALESCE(channel_message_metadata, '{}'::jsonb),
+              '{status}',
+              '"read"'::jsonb
+            )`,
+          })
+          .where(
+            and(
+              eq(messagesTable.chatbotId, chatbotId),
+              eq(messagesTable.channel, 'WHATSAPP'),
+              sql`channel_message_metadata->>'waMessageId' = ${messageId}`
+            )
+          );
+
+        successCount++;
+      } catch (error: any) {
+        const errorMsg = error.response?.data?.error?.message || error.message;
+        errors.push(`Message ${messageId}: ${errorMsg}`);
+        logger.error(`Failed to mark message ${messageId} as read:`, errorMsg);
+      }
+    }
+
+    if (successCount === 0) {
+      throw new ApiError(`Failed to mark messages as read: ${errors.join('; ')}`, httpStatus.BAD_GATEWAY);
+    }
+
+    return {
+      success: true,
+      message: `Successfully marked ${successCount}/${messageIds.length} messages as read${errors.length > 0 ? `. Errors: ${errors.join('; ')}` : ''}`,
+    };
+  } catch (error: any) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    logger.error('Error marking messages as read:', error);
+    throw new ApiError('Error marking messages as read', httpStatus.INTERNAL_SERVER_ERROR);
+  }
+};
+
 export const handleSendWhatsAppMessage = async (
   userId: string,
   chatbotId: string,
@@ -299,13 +396,14 @@ export const handleSendWhatsAppMessage = async (
     }
 
     // Send message via WhatsApp API
-    // Using v22.0 API version as per Meta App Dashboard
-    const url = `https://graph.facebook.com/v22.0/${integration.phoneNumberId}/messages`;
+    const apiVersion = process.env.WHATSAPP_API_VERSION || 'v20.0';
+    const url = `https://graph.facebook.com/${apiVersion}/${integration.phoneNumberId}/messages`;
     const payload = {
       messaging_product: 'whatsapp',
       to: input.to,
       type: 'text',
       text: {
+        preview_url: false, // Explicitly set preview_url as per API docs
         body: input.message,
       },
     };

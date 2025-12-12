@@ -6,6 +6,7 @@ import {
   getWhatsAppIntegration,
   deleteWhatsAppIntegration,
   sendMessage,
+  markMessagesAsRead,
   getWhatsAppChats,
   getWhatsAppContactMessages,
   createWhatsAppContact,
@@ -19,6 +20,7 @@ import {
   deleteWhatsAppIntegrationSchema,
   sendMessageSchema,
   createWhatsAppContactSchema,
+  markMessagesAsReadSchema,
 } from './whatsapp-schema';
 
 const app = express.Router();
@@ -65,6 +67,15 @@ app.post(
   sendMessage
 );
 
+// Mark messages as read route
+app.post(
+  '/messages/read',
+  auth,
+  validate('query', getWhatsAppIntegrationSchema),
+  validate('body', markMessagesAsReadSchema),
+  markMessagesAsRead
+);
+
 // Get WhatsApp chats (list of contacts)
 app.get(
   '/chats/:chatbotId/:whatsappId',
@@ -101,5 +112,10 @@ app.get(
   getWhatsAppAnalyticsPerDay
 );
 
+// Marketing Routes
+import marketingRouter from './whatsapp-marketing-router';
+app.use('/', marketingRouter);
+
 export default app;
+
 

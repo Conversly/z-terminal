@@ -8,6 +8,7 @@ import {
   handleGetWhatsAppIntegration,
   handleDeleteWhatsAppIntegration,
   handleSendWhatsAppMessage,
+  handleMarkMessagesAsRead,
   handleGetWhatsAppChats,
   handleGetWhatsAppContactMessages,
   handleCreateWhatsAppContact,
@@ -146,6 +147,34 @@ export const sendMessage = catchAsync(
     res.status(httpStatus.OK).json({
       success: true,
       message: 'Message sent successfully',
+      data: result,
+    });
+  }
+);
+
+// Mark messages as read
+export const markMessagesAsRead = catchAsync(
+  async (req: jwtReq, res: Response, next: NextFunction) => {
+    const chatbotId = req.query.chatbotId as string;
+    const messageIds = req.body.messageIds as string[];
+
+    if (!messageIds || !Array.isArray(messageIds) || messageIds.length === 0) {
+      res.status(httpStatus.BAD_REQUEST).json({
+        success: false,
+        message: 'messageIds array is required and must not be empty',
+      });
+      return;
+    }
+
+    const result = await handleMarkMessagesAsRead(
+      req.user.userId as string,
+      chatbotId,
+      messageIds
+    );
+
+    res.status(httpStatus.OK).json({
+      success: true,
+      message: result.message,
       data: result,
     });
   }

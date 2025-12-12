@@ -84,3 +84,38 @@ export const createWhatsAppContactSchema = yup.object().shape({
     .max(255, 'Display name must not exceed 255 characters'),
 });
 
+// --- Marketing Schemas ---
+
+export const createTemplateSchema = yup.object().shape({
+  chatbotId: yup.string().required(),
+  name: yup.string().required(),
+  category: yup.string().required(), // MARKETING, UTILITY, etc.
+  language: yup.string().required(), // en_US
+  components: yup.array().optional(), // Complex validation skipped for now
+});
+
+export const syncTemplatesSchema = yup.object().shape({
+  chatbotId: yup.string().required(),
+});
+
+export const createCampaignSchema = yup.object().shape({
+  chatbotId: yup.string().required(),
+  name: yup.string().required(),
+  templateId: yup.string().required(),
+  scheduledAt: yup.date().optional(),
+  audienceFile: yup.mixed().optional(), // If uploading CSV
+});
+
+export const launchCampaignSchema = yup.object().shape({
+  chatbotId: yup.string().required(), // Security check
+});
+
+export const markMessagesAsReadSchema = yup.object().shape({
+  messageIds: yup
+    .array()
+    .of(yup.string().required())
+    .min(1, 'At least one message ID is required')
+    .required('messageIds array is required'),
+});
+
+

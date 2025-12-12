@@ -187,6 +187,23 @@ export interface WhatsAppAnalyticsPerDayItem {
   uniqueContacts: number;
 }
 
+// --- Marketing Types ---
+
+export interface CreateTemplateInput {
+  chatbotId: string;
+  name: string;
+  category: string;
+  language: string;
+  components: any[];
+}
+
+export interface CreateCampaignInput {
+  name: string;
+  templateId: string;
+  scheduledAt?: Date;
+  audienceFile?: any; // Just a placeholder for file upload handling
+}
+
 export interface WhatsAppAnalyticsPerDayResponse {
   success: boolean;
   data: WhatsAppAnalyticsPerDayItem[];

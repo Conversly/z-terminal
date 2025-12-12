@@ -623,6 +623,209 @@ export const whataappAnalyticsPerDay = pgTable('whatsapp_analytics_per_day', {
         .onDelete('cascade'),
 ]);
 
+// --- Enums for Marketing ---
+export const whatsappTemplateStatus = pgEnum('WhatsappTemplateStatus', ['APPROVED', 'PENDING', 'REJECTED']);
+export const whatsappCampaignStatus = pgEnum('WhatsappCampaignStatus', ['DRAFT', 'SCHEDULED', 'PROCESSING', 'COMPLETED', 'FAILED']);
+
+// --- Templates Table ---
+export const whatsappTemplates = pgTable('whatsapp_templates', {
+  id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+  chatbotId: text('chatbot_id').notNull(),
+  
+  // Meta identification
+  metaTemplateId: varchar('meta_template_id', { length: 255 }).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  language: varchar('language', { length: 10 }).notNull(), // e.g. en_US
+  
+  status: whatsappTemplateStatus('status').notNull().default('PENDING'),
+  category: varchar('category', { length: 50 }), // MARKETING, UTILITY, AUTHENTICATION
+  
+  // Structure (Header, Body, Footer, Buttons)
+  components: json('components').notNull().default(sql`'[]'::json`),
+  
+  createdAt: timestamp('created_at', { mode: 'date', precision: 6 }).defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date', precision: 6 }).defaultNow(),
+}, (table) => [
+  foreignKey({
+    columns: [table.chatbotId],
+    foreignColumns: [chatBots.id], 
+  }).onDelete('cascade'),
+  uniqueIndex('wa_templates_meta_id_unique').on(table.metaTemplateId),
+  index('wa_templates_chatbot_idx').on(table.chatbotId),
+]);
+
+// --- Campaigns Table ---
+export const whatsappCampaigns = pgTable('whatsapp_campaigns', {
+  id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+  chatbotId: text('chatbot_id').notNull(),
+  
+  name: varchar('name', { length: 255 }).notNull(),
+  templateId: text('template_id').notNull(), // Reference to whatsapp_templates
+  
+  status: whatsappCampaignStatus('status').notNull().default('DRAFT'),
+  scheduledAt: timestamp('scheduled_at', { mode: 'date', precision: 6 }),
+  
+  // High-level stats
+  audienceSize: integer('audience_size').default(0),
+  sentCount: integer('sent_count').default(0),
+  deliveredCount: integer('delivered_count').default(0),
+  readCount: integer('read_count').default(0),
+  repliedCount: integer('replied_count').default(0),
+  
+  createdAt: timestamp('created_at', { mode: 'date', precision: 6 }).defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date', precision: 6 }).defaultNow(),
+}, (table) => [
+  foreignKey({
+    columns: [table.chatbotId],
+    foreignColumns: [chatBots.id],
+  }).onDelete('cascade'),
+  foreignKey({
+    columns: [table.templateId],
+    foreignColumns: [whatsappTemplates.id],
+  }),
+  index('wa_campaigns_chatbot_idx').on(table.chatbotId),
+]);
+
+// --- Campaign Audience (Recipients) ---
+export const whatsappCampaignAudience = pgTable('whatsapp_campaign_audience', {
+  id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+  campaignId: text('campaign_id').notNull(),
+  contactId: text('contact_id').notNull(), // Reference to whatsapp_contacts
+  
+  status: varchar('status', { length: 50 }).default('PENDING'), // PENDING, SENT, FAILED
+  messageId: text('message_id'), // Reference to the actual sent message
+  
+  createdAt: timestamp('created_at', { mode: 'date', precision: 6 }).defaultNow(),
+}, (table) => [
+  foreignKey({
+    columns: [table.campaignId],
+    foreignColumns: [whatsappCampaigns.id],
+  }).onDelete('cascade'),
+  foreignKey({
+    columns: [table.contactId],
+    foreignColumns: [whatsappContacts.id],
+  }).onDelete('cascade'),
+  // unique recipient per campaign
+  uniqueIndex('wa_campaign_audience_unique').on(table.campaignId, table.contactId),
+  index('wa_campaign_audience_campaign_idx').on(table.campaignId),
+]);
+
+// product launches table
+export const productLaunches = pgTable(
+    'product_launches',
+    {
+        id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+        
+        userId: text('user_id')
+            .notNull()
+            .references(() => user.id, { onUpdate: 'cascade', onDelete: 'cascade' }),
+        
+        // Basic Product Info
+        name: text('name').notNull(),
+        tagline: text('tagline'),
+        description: text('description'),
+        logoUrl: text('logo_url'),
+        websiteUrl: text('website_url'),
+        launchDate: timestamp('launch_date', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
+        
+        // Chatbot Integration (floating widget only)
+        chatbotId: text('chatbot_id')
+            .references(() => chatBots.id, { onUpdate: 'cascade', onDelete: 'set null' }),
+        
+        // Product Metadata
+        tags: json('tags').$type<string[]>().default(sql`'[]'::json`),
+        likesCount: integer('likes_count').default(0).notNull(),
+        keyFeatures: json('key_features').$type<string[]>().default(sql`'[]'::json`),
+        
+        // Customization
+        theme: json('theme').$type<{
+            primaryColor?: string;
+            backgroundColor?: string;
+            textColor?: string;
+            fontFamily?: string;
+            layout?: string;
+            heroStyle?: string;
+            cardStyle?: string;
+            accentColor?: string;
+            gradient?: string;
+        }>().default(sql`'{}'::json`),
+        
+        // Media Gallery
+        media: json('media').$type<Array<{
+            id: string;
+            type: 'image' | 'video';
+            url: string;
+            thumbnailUrl?: string;
+            alt?: string;
+        }>>().default(sql`'[]'::json`),
+        
+        // Team Members
+        team: json('team').$type<Array<{
+            id: string;
+            name: string;
+            role: string;
+            avatarUrl?: string;
+            socials?: {
+                twitter?: string;
+                linkedin?: string;
+                github?: string;
+                website?: string;
+            };
+        }>>().default(sql`'[]'::json`),
+        
+        // Comments (threaded)
+        comments: json('comments').$type<Array<{
+            id: string;
+            author: {
+                name: string;
+                avatarUrl?: string;
+                username?: string;
+                isMaker?: boolean;
+                badge?: string;
+            };
+            content: string;
+            createdAt: string;
+            upvotes: number;
+            replies: Array<any>;
+        }>>().default(sql`'[]'::json`),
+        
+        // Announcement Banner
+        announcement: json('announcement').$type<{
+            enabled?: boolean;
+            text?: string;
+            link?: string;
+            emoji?: string;
+            backgroundColor?: string;
+            textColor?: string;
+            showCountdown?: boolean;
+        }>().default(sql`'{}'::json`),
+        
+        // Countdown Timer
+        countdown: json('countdown').$type<{
+            enabled?: boolean;
+            targetDate?: string;
+            title?: string;
+        }>().default(sql`'{}'::json`),
+        
+        // Social Links
+        socialLinks: json('social_links').$type<{
+            twitter?: string;
+            github?: string;
+            discord?: string;
+            youtube?: string;
+            website?: string;
+        }>().default(sql`'{}'::json`),
+        
+        createdAt: timestamp('created_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
+        updatedAt: timestamp('updated_at', { mode: 'date', withTimezone: true, precision: 6 }).defaultNow(),
+    },
+    (table) => [
+        index('product_launches_user_id_idx').using('btree', table.userId.asc().nullsLast()),
+        index('product_launches_chatbot_id_idx').using('btree', table.chatbotId.asc().nullsLast()),
+        index('product_launches_launch_date_idx').using('btree', table.launchDate.desc().nullsLast()),
+        index('product_launches_likes_count_idx').using('btree', table.likesCount.desc().nullsLast()),
+    ]
+);
 
 
 // Custom Actions Table
