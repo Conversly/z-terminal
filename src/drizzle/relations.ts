@@ -12,12 +12,17 @@ import {
   chatbotTopics,
   chatbotTopicStats,
   whatsappAccounts,
-  whatsappContacts,
+  contacts,
+  channelAccounts,
+  smsAccounts,
+  emailAccounts,
+  templates,
+  campaigns,
+  campaignAudience,
   originDomains,
   subscriptionPlans,
   subscribedUsers,
   analyticsPerDay,
-  whataappAnalyticsPerDay,
   productLaunches,
   voiceConfig,
   voiceWidgetConfig,
@@ -54,10 +59,14 @@ export const chatBotsRelations = relations(chatBots, ({ one, many }) => ({
   topics: many(chatbotTopics),
   topicStats: many(chatbotTopicStats),
   whatsappAccount: one(whatsappAccounts),
-  whatsappContacts: many(whatsappContacts),
+  contacts: many(contacts),
+  channelAccounts: many(channelAccounts),
+  smsAccounts: many(smsAccounts),
+  emailAccounts: many(emailAccounts),
+  templates: many(templates),
+  campaigns: many(campaigns),
   originDomains: many(originDomains),
   analyticsPerDay: many(analyticsPerDay),
-  whatsappAnalyticsPerDay: many(whataappAnalyticsPerDay),
   productLaunches: many(productLaunches),
   voiceConfigs: many(voiceConfig),
 }));
@@ -149,10 +158,63 @@ export const whatsappAccountsRelations = relations(whatsappAccounts, ({ one, man
   }),
 }));
 
-export const whatsappContactsRelations = relations(whatsappContacts, ({ one }) => ({
+export const contactsRelations = relations(contacts, ({ one, many }) => ({
   chatBot: one(chatBots, {
-    fields: [whatsappContacts.chatbotId],
+    fields: [contacts.chatbotId],
     references: [chatBots.id],
+  }),
+  campaignAudiences: many(campaignAudience),
+}));
+
+export const channelAccountsRelations = relations(channelAccounts, ({ one }) => ({
+  chatBot: one(chatBots, {
+    fields: [channelAccounts.chatbotId],
+    references: [chatBots.id],
+  }),
+}));
+
+export const smsAccountsRelations = relations(smsAccounts, ({ one }) => ({
+  chatBot: one(chatBots, {
+    fields: [smsAccounts.chatbotId],
+    references: [chatBots.id],
+  }),
+}));
+
+export const emailAccountsRelations = relations(emailAccounts, ({ one }) => ({
+  chatBot: one(chatBots, {
+    fields: [emailAccounts.chatbotId],
+    references: [chatBots.id],
+  }),
+}));
+
+export const templatesRelations = relations(templates, ({ one, many }) => ({
+  chatBot: one(chatBots, {
+    fields: [templates.chatbotId],
+    references: [chatBots.id],
+  }),
+  campaigns: many(campaigns),
+}));
+
+export const campaignsRelations = relations(campaigns, ({ one, many }) => ({
+  chatBot: one(chatBots, {
+    fields: [campaigns.chatbotId],
+    references: [chatBots.id],
+  }),
+  template: one(templates, {
+    fields: [campaigns.templateId],
+    references: [templates.id],
+  }),
+  audience: many(campaignAudience),
+}));
+
+export const campaignAudienceRelations = relations(campaignAudience, ({ one }) => ({
+  campaign: one(campaigns, {
+    fields: [campaignAudience.campaignId],
+    references: [campaigns.id],
+  }),
+  contact: one(contacts, {
+    fields: [campaignAudience.contactId],
+    references: [contacts.id],
   }),
 }));
 
@@ -185,13 +247,6 @@ export const subscribedUsersRelations = relations(subscribedUsers, ({ one }) => 
 export const analyticsPerDayRelations = relations(analyticsPerDay, ({ one }) => ({
   chatBot: one(chatBots, {
     fields: [analyticsPerDay.chatbotId],
-    references: [chatBots.id],
-  }),
-}));
-
-export const whatsappAnalyticsPerDayRelations = relations(whataappAnalyticsPerDay, ({ one }) => ({
-  chatBot: one(chatBots, {
-    fields: [whataappAnalyticsPerDay.chatbotId],
     references: [chatBots.id],
   }),
 }));

@@ -62,6 +62,8 @@ export const messageChannel = pgEnum('MessageChannel', [
   'WIDGET',
   'WHATSAPP',
   'VOICE',
+  'SMS',
+  'EMAIL',
 ]);
 
 export const messageType = pgEnum('MessageType', [
@@ -546,7 +548,29 @@ export const chatbotTopicStats = pgTable("chatbot_topic_stats", {
   index("chatbot_topic_stats_chatbot_topic_date_idx").on(table.chatbotId, table.topicId, table.date.desc()),
 ]);
 
-// WhatsApp Tables (with webhook secrets and all required details)
+// -------------------- Channel Accounts (Unified channel account management) --------------------
+export const channelAccounts = pgTable('channel_accounts', {
+  id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+  chatbotId: text('chatbot_id').notNull(),
+  channel: text('channel').notNull(), // WHATSAPP | SMS | EMAIL
+  provider: varchar('provider', { length: 50 }).notNull(),
+  accountRefId: text('account_ref_id').notNull(), // Reference to the specific account table (whatsapp_accounts.id, sms_accounts.id, email_accounts.id)
+  isDefault: boolean('is_default').default(false),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at', { mode: 'date', precision: 6 }).defaultNow(),
+}, (table) => [
+  // Ensure only one default account per channel per chatbot
+  uniqueIndex('channel_account_default_unique').on(table.chatbotId, table.channel).where(sql`${table.isDefault} = true`),
+  index('channel_accounts_chatbot_channel_idx').on(table.chatbotId, table.channel),
+  foreignKey({
+    columns: [table.chatbotId],
+    foreignColumns: [chatBots.id],
+  })
+    .onUpdate('cascade')
+    .onDelete('cascade'),
+]);
+
+// -------------------- WhatsApp Accounts --------------------
 export const whatsappAccounts = pgTable('whatsapp_accounts', {
   id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
   chatbotId: text('chatbot_id').notNull().references(() => chatBots.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
@@ -567,19 +591,68 @@ export const whatsappAccounts = pgTable('whatsapp_accounts', {
   unique('whatsapp_accounts_chatbot_id_unique').on(table.chatbotId), // One WhatsApp account per chatbot
 ]);
 
-export const whatsappContacts = pgTable('whatsapp_contacts', {
+// -------------------- SMS Accounts --------------------
+export const smsAccounts = pgTable('sms_accounts', {
   id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
   chatbotId: text('chatbot_id').notNull(),
-  phoneNumber: varchar('phone_number', { length: 255 }).notNull(),
-
-  displayName: varchar('display_name', { length: 255 }),
-  // Detailed metadata: { wa_id, profile, first_seen_at, last_seen_at, last_inbound_message_id, waba_id, phone_number_id, display_phone_number, source, opt_in_status, etc }
-  userMetadata: json('whatsapp_user_metadata').notNull(),
+  provider: varchar('provider', { length: 50 }).notNull(), // TWILIO | VONAGE | AWS_SNS | etc.
+  senderId: varchar('sender_id', { length: 50 }).notNull(),
+  apiKey: text('api_key'),
+  apiSecret: text('api_secret'),
+  status: text('status').default('active').notNull(),
   createdAt: timestamp('created_at', { mode: 'date', precision: 6 }).defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date', precision: 6 }).defaultNow(),
 }, (table) => [
-  uniqueIndex('whatsapp_contacts_chatbot_id_phone_number_unique').on(table.chatbotId, table.phoneNumber),
-  index('whatsapp_contacts_chatbot_id_idx').on(table.chatbotId),
+  index('sms_accounts_chatbot_idx').on(table.chatbotId),
+  foreignKey({
+    columns: [table.chatbotId],
+    foreignColumns: [chatBots.id],
+  })
+    .onUpdate('cascade')
+    .onDelete('cascade'),
+]);
+
+// -------------------- Email Accounts --------------------
+export const emailAccounts = pgTable('email_accounts', {
+  id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+  chatbotId: text('chatbot_id').notNull(),
+  provider: varchar('provider', { length: 50 }).notNull(), // SENDGRID | MAILGUN | AWS_SES | SMTP | etc.
+  fromEmail: varchar('from_email', { length: 255 }).notNull(),
+  fromName: varchar('from_name', { length: 255 }),
+  apiKey: text('api_key'),
+  apiSecret: text('api_secret'),
+  smtpHost: varchar('smtp_host', { length: 255 }),
+  smtpPort: integer('smtp_port'),
+  smtpUsername: varchar('smtp_username', { length: 255 }),
+  smtpPassword: text('smtp_password'),
+  status: text('status').default('active').notNull(),
+  createdAt: timestamp('created_at', { mode: 'date', precision: 6 }).defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date', precision: 6 }).defaultNow(),
+}, (table) => [
+  index('email_accounts_chatbot_idx').on(table.chatbotId),
+  foreignKey({
+    columns: [table.chatbotId],
+    foreignColumns: [chatBots.id],
+  })
+    .onUpdate('cascade')
+    .onDelete('cascade'),
+]);
+
+// -------------------- Contacts (Unified for all channels) --------------------
+export const contacts = pgTable('contacts', {
+  id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
+  chatbotId: text('chatbot_id').notNull(),
+  displayName: varchar('display_name', { length: 255 }),
+  phoneNumber: varchar('phone_number', { length: 20 }),
+  email: varchar('email', { length: 255 }),
+  channels: text('channels').array().notNull().default(sql`ARRAY[]::text[]`), // Array of channels: ['WHATSAPP', 'SMS', 'EMAIL']
+  metadata: json('metadata').notNull().default(sql`'{}'::json`), // Channel-specific metadata
+  createdAt: timestamp('created_at', { mode: 'date', precision: 6 }).defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date', precision: 6 }).defaultNow(),
+}, (table) => [
+  index('contacts_chatbot_idx').on(table.chatbotId),
+  index('contacts_phone_number_idx').on(table.phoneNumber),
+  index('contacts_email_idx').on(table.email),
   foreignKey({
     columns: [table.chatbotId],
     foreignColumns: [chatBots.id],
@@ -602,6 +675,8 @@ export const analyticsPerDay = pgTable('analytics_per_day', {
   feedbackCount: integer('feedback_count').default(0).notNull(),
   uniqueWidgetConversations: integer('unique_widget_conversations').default(0).notNull(),
   uniqueWhatsappConversations: integer('unique_whatsapp_conversations').default(0).notNull(),
+  uniqueSmsConversations: integer('unique_sms_conversations').default(0).notNull(),
+  uniqueEmailConversations: integer('unique_email_conversations').default(0).notNull(),
   uniqueContacts: integer('unique_contacts').default(0).notNull(),
   uniqueTopicIds: text('unique_topic_ids').array().notNull().default(sql`ARRAY[]::text[]`),
   createdAt: timestamp('created_at', { mode: 'date', precision: 6 }).defaultNow(),
@@ -617,39 +692,27 @@ export const analyticsPerDay = pgTable('analytics_per_day', {
     .onDelete('cascade'),
 ]);
 
-// only core whatsapp related columns
-export const whataappAnalyticsPerDay = pgTable('whatsapp_analytics_per_day', {
-  id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
-  chatbotId: text('chatbot_id').notNull(),
-  date: date('date').notNull().default(sql`CURRENT_DATE`),
-}, (table) => [
-  foreignKey({
-    columns: [table.chatbotId],
-    foreignColumns: [chatBots.id],
-  })
-    .onUpdate('cascade')
-    .onDelete('cascade'),
-]);
-
 // --- Enums for Marketing ---
-export const whatsappTemplateStatus = pgEnum('WhatsappTemplateStatus', ['APPROVED', 'PENDING', 'REJECTED']);
-export const whatsappCampaignStatus = pgEnum('WhatsappCampaignStatus', ['DRAFT', 'SCHEDULED', 'PROCESSING', 'COMPLETED', 'FAILED']);
+export const templateStatus = pgEnum('TemplateStatus', ['APPROVED', 'PENDING', 'REJECTED', 'ACTIVE']);
+export const campaignStatus = pgEnum('CampaignStatus', ['DRAFT', 'SCHEDULED', 'PROCESSING', 'COMPLETED', 'FAILED']);
+export const campaignAudienceStatus = pgEnum('CampaignAudienceStatus', ['PENDING', 'SENT', 'DELIVERED', 'READ', 'FAILED']);
 
-// --- Templates Table ---
-export const whatsappTemplates = pgTable('whatsapp_templates', {
+// -------------------- Templates (Unified for all channels) --------------------
+export const templates = pgTable('templates', {
   id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
   chatbotId: text('chatbot_id').notNull(),
-  
-  // Meta identification
-  metaTemplateId: varchar('meta_template_id', { length: 255 }).notNull(),
+  channel: text('channel').notNull(), // WHATSAPP | SMS | EMAIL
   name: varchar('name', { length: 255 }).notNull(),
-  language: varchar('language', { length: 10 }).notNull(), // e.g. en_US
+  subject: varchar('subject', { length: 255 }), // For EMAIL and SMS
+  content: text('content').notNull(),
+  variables: json('variables').notNull().default(sql`'[]'::json`), // Array of variable names
+  status: templateStatus('status').default('ACTIVE').notNull(),
   
-  status: whatsappTemplateStatus('status').notNull().default('PENDING'),
-  category: varchar('category', { length: 50 }), // MARKETING, UTILITY, AUTHENTICATION
-  
-  // Structure (Header, Body, Footer, Buttons)
-  components: json('components').notNull().default(sql`'[]'::json`),
+  // Channel-specific fields (for WhatsApp Meta templates)
+  metaTemplateId: varchar('meta_template_id', { length: 255 }), // WhatsApp Meta template ID
+  language: varchar('language', { length: 10 }), // e.g. en_US (for WhatsApp)
+  category: varchar('category', { length: 50 }), // MARKETING, UTILITY, AUTHENTICATION (for WhatsApp)
+  components: json('components'), // WhatsApp template components (Header, Body, Footer, Buttons)
   
   createdAt: timestamp('created_at', { mode: 'date', precision: 6 }).defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date', precision: 6 }).defaultNow(),
@@ -657,65 +720,63 @@ export const whatsappTemplates = pgTable('whatsapp_templates', {
   foreignKey({
     columns: [table.chatbotId],
     foreignColumns: [chatBots.id], 
-  }).onDelete('cascade'),
-  uniqueIndex('wa_templates_meta_id_unique').on(table.metaTemplateId),
-  index('wa_templates_chatbot_idx').on(table.chatbotId),
+  }).onDelete('cascade').onUpdate('cascade'),
+  index('templates_chatbot_idx').on(table.chatbotId),
+  index('templates_channel_idx').on(table.channel),
 ]);
 
-// --- Campaigns Table ---
-export const whatsappCampaigns = pgTable('whatsapp_campaigns', {
+// -------------------- Campaigns (Unified for all channels) --------------------
+export const campaigns = pgTable('campaigns', {
   id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
   chatbotId: text('chatbot_id').notNull(),
-  
   name: varchar('name', { length: 255 }).notNull(),
-  templateId: text('template_id').notNull(), // Reference to whatsapp_templates
-  
-  status: whatsappCampaignStatus('status').notNull().default('DRAFT'),
+  channel: text('channel').notNull(), // WHATSAPP | SMS | EMAIL
+  templateId: text('template_id').notNull(), // Reference to templates
+  status: campaignStatus('status').notNull().default('DRAFT'),
   scheduledAt: timestamp('scheduled_at', { mode: 'date', precision: 6 }),
-  
-  // High-level stats
-  audienceSize: integer('audience_size').default(0),
-  sentCount: integer('sent_count').default(0),
-  deliveredCount: integer('delivered_count').default(0),
-  readCount: integer('read_count').default(0),
-  repliedCount: integer('replied_count').default(0),
-  
+  sentCount: integer('sent_count').default(0).notNull(),
+  deliveredCount: integer('delivered_count').default(0).notNull(),
+  readCount: integer('read_count').default(0).notNull(),
+  repliedCount: integer('replied_count').default(0).notNull(),
   createdAt: timestamp('created_at', { mode: 'date', precision: 6 }).defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date', precision: 6 }).defaultNow(),
 }, (table) => [
   foreignKey({
     columns: [table.chatbotId],
     foreignColumns: [chatBots.id],
-  }).onDelete('cascade'),
+  }).onDelete('cascade').onUpdate('cascade'),
   foreignKey({
     columns: [table.templateId],
-    foreignColumns: [whatsappTemplates.id],
-  }),
-  index('wa_campaigns_chatbot_idx').on(table.chatbotId),
+    foreignColumns: [templates.id],
+  }).onDelete('cascade').onUpdate('cascade'),
+  index('campaigns_chatbot_idx').on(table.chatbotId),
+  index('campaigns_channel_idx').on(table.channel),
 ]);
 
-// --- Campaign Audience (Recipients) ---
-export const whatsappCampaignAudience = pgTable('whatsapp_campaign_audience', {
+// -------------------- Campaign Audience (Unified for all channels) --------------------
+export const campaignAudience = pgTable('campaign_audience', {
   id: text('id').primaryKey().notNull().$defaultFn(() => createId()),
   campaignId: text('campaign_id').notNull(),
-  contactId: text('contact_id').notNull(), // Reference to whatsapp_contacts
-  
-  status: varchar('status', { length: 50 }).default('PENDING'), // PENDING, SENT, FAILED
+  contactId: text('contact_id').notNull(), // Reference to contacts
+  status: campaignAudienceStatus('status').default('PENDING').notNull(), // pending | sent | delivered | read | failed
+  sentAt: timestamp('sent_at', { mode: 'date', precision: 6 }),
+  deliveredAt: timestamp('delivered_at', { mode: 'date', precision: 6 }),
+  readAt: timestamp('read_at', { mode: 'date', precision: 6 }),
   messageId: text('message_id'), // Reference to the actual sent message
-  
+  errorMessage: text('error_message'),
   createdAt: timestamp('created_at', { mode: 'date', precision: 6 }).defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date', precision: 6 }).defaultNow(),
 }, (table) => [
   foreignKey({
     columns: [table.campaignId],
-    foreignColumns: [whatsappCampaigns.id],
-  }).onDelete('cascade'),
+    foreignColumns: [campaigns.id],
+  }).onDelete('cascade').onUpdate('cascade'),
   foreignKey({
     columns: [table.contactId],
-    foreignColumns: [whatsappContacts.id],
-  }).onDelete('cascade'),
-  // unique recipient per campaign
-  uniqueIndex('wa_campaign_audience_unique').on(table.campaignId, table.contactId),
-  index('wa_campaign_audience_campaign_idx').on(table.campaignId),
+    foreignColumns: [contacts.id],
+  }).onDelete('cascade').onUpdate('cascade'),
+  index('campaign_audience_campaign_idx').on(table.campaignId),
+  uniqueIndex('campaign_audience_unique').on(table.campaignId, table.contactId),
 ]);
 
 // product launches table

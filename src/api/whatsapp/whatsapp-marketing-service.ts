@@ -1,10 +1,10 @@
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { db } from '../../loaders/postgres';
 import {
-    whatsappTemplates,
-    whatsappCampaigns,
-    whatsappCampaignAudience,
-    whatsappContacts,
+    templates,
+    campaigns,
+    campaignAudience,
+    contacts,
     whatsappAccountStatus
 } from '../../drizzle/schema';
 import { createId } from '@paralleldrive/cuid2';
@@ -18,9 +18,14 @@ import httpStatus from 'http-status';
 export const handleGetTemplates = async (chatbotId: string) => {
     return await db
         .select()
-        .from(whatsappTemplates)
-        .where(eq(whatsappTemplates.chatbotId, chatbotId))
-        .orderBy(desc(whatsappTemplates.createdAt));
+        .from(templates)
+        .where(
+            and(
+                eq(templates.chatbotId, chatbotId),
+                eq(templates.channel, 'WHATSAPP')
+            )
+        )
+        .orderBy(desc(templates.createdAt));
 };
 
 export const handleSyncTemplates = async (userId: string, chatbotId: string) => {
@@ -58,13 +63,21 @@ export const handleSyncTemplates = async (userId: string, chatbotId: string) => 
         else if (t.status === 'REJECTED') status = 'REJECTED';
 
         // Check if exists
-        const existing = await db.query.whatsappTemplates.findFirst({
-            where: (tbl: any, { eq }: any) => eq(tbl.metaTemplateId, t.id),
-        });
+        const existing = await db
+            .select()
+            .from(templates)
+            .where(
+                and(
+                    eq(templates.metaTemplateId, t.id),
+                    eq(templates.channel, 'WHATSAPP')
+                )
+            )
+            .limit(1)
+            .then((r) => r[0]);
 
         if (existing) {
             // Update
-            await db.update(whatsappTemplates)
+            await db.update(templates)
                 .set({
                     name: t.name,
                     language: t.language,
@@ -73,20 +86,23 @@ export const handleSyncTemplates = async (userId: string, chatbotId: string) => 
                     components: t.components,
                     updatedAt: new Date()
                 })
-                .where(eq(whatsappTemplates.id, existing.id));
+                .where(eq(templates.id, existing.id));
             results.push({ ...existing, status });
         } else {
             // Insert
             const newId = createId();
-            await db.insert(whatsappTemplates).values({
+            await db.insert(templates).values({
                 id: newId,
                 chatbotId,
+                channel: 'WHATSAPP',
                 metaTemplateId: t.id,
                 name: t.name,
                 language: t.language,
                 status: status,
                 category: t.category,
                 components: t.components,
+                content: '', // Required field, will be populated from components
+                variables: [],
             });
             results.push({ id: newId, name: t.name, status });
         }
@@ -140,15 +156,18 @@ export const handleCreateTemplate = async (
 
     // 3. Store in database
     const templateId = createId();
-    await db.insert(whatsappTemplates).values({
+    await db.insert(templates).values({
         id: templateId,
         chatbotId,
+        channel: 'WHATSAPP',
         metaTemplateId: metaTemplateId,
         name: data.name,
         language: data.language,
         status: 'PENDING', // New templates start as PENDING
         category: data.category,
         components: data.components,
+        content: '', // Required field, will be populated from components
+        variables: [],
     });
 
     return {
@@ -167,12 +186,18 @@ export const handleDeleteTemplate = async (
     templateId: string
 ) => {
     // 1. Get template from database
-    const template = await db.query.whatsappTemplates.findFirst({
-        where: (tbl: any, { eq, and }: any) => and(
-            eq(tbl.id, templateId),
-            eq(tbl.chatbotId, chatbotId)
-        ),
-    });
+    const template = await db
+        .select()
+        .from(templates)
+        .where(
+            and(
+                eq(templates.id, templateId),
+                eq(templates.chatbotId, chatbotId),
+                eq(templates.channel, 'WHATSAPP')
+            )
+        )
+        .limit(1)
+        .then((r) => r[0]);
 
     if (!template) {
         throw new ApiError('Template not found', httpStatus.NOT_FOUND);
@@ -214,8 +239,8 @@ export const handleDeleteTemplate = async (
     }
 
     // 4. Delete from database
-    await db.delete(whatsappTemplates)
-        .where(eq(whatsappTemplates.id, templateId));
+    await db.delete(templates)
+        .where(eq(templates.id, templateId));
 
     return { success: true, message: 'Template deleted successfully' };
 };
@@ -224,13 +249,16 @@ export const handleDeleteTemplate = async (
 // --- Campaigns Service ---
 
 export const handleGetCampaigns = async (chatbotId: string) => {
-    return await db.query.whatsappCampaigns.findMany({
-        where: (tbl: any, { eq }: any) => eq(tbl.chatbotId, chatbotId),
-        with: {
-            // template: true, // If relation was defined in schema relations, but standard drizzle define relations used in query builder often requires explicit schema relations export
-        },
-        orderBy: (tbl: any, { desc }: any) => [desc(tbl.createdAt)] // Correct syntax for orderBy in query builder
-    });
+    return await db
+        .select()
+        .from(campaigns)
+        .where(
+            and(
+                eq(campaigns.chatbotId, chatbotId),
+                eq(campaigns.channel, 'WHATSAPP')
+            )
+        )
+        .orderBy(desc(campaigns.createdAt));
 };
 
 export const handleCreateCampaign = async (
@@ -240,9 +268,10 @@ export const handleCreateCampaign = async (
 ) => {
     // Basic creation
     const campaignId = createId();
-    await db.insert(whatsappCampaigns).values({
+    await db.insert(campaigns).values({
         id: campaignId,
         chatbotId,
+        channel: 'WHATSAPP',
         name: data.name,
         templateId: data.templateId,
         scheduledAt: data.scheduledAt,
@@ -259,9 +288,18 @@ export const handleLaunchCampaign = async (
     contactIds?: string[]
 ) => {
     // 1. Get Campaign and Check Status
-    const campaign = await db.query.whatsappCampaigns.findFirst({
-        where: (tbl: any, { eq, and }: any) => and(eq(tbl.id, campaignId), eq(tbl.chatbotId, chatbotId))
-    });
+    const campaign = await db
+        .select()
+        .from(campaigns)
+        .where(
+            and(
+                eq(campaigns.id, campaignId),
+                eq(campaigns.chatbotId, chatbotId),
+                eq(campaigns.channel, 'WHATSAPP')
+            )
+        )
+        .limit(1)
+        .then((r) => r[0]);
 
     if (!campaign) throw new ApiError('Campaign not found', httpStatus.NOT_FOUND);
     if (campaign.status !== 'DRAFT') throw new ApiError('Campaign is not in DRAFT status', httpStatus.BAD_REQUEST);
@@ -275,24 +313,39 @@ export const handleLaunchCampaign = async (
     }
 
     // 3. Get Template (for Name/Lang)
-    const template = await db.query.whatsappTemplates.findFirst({
-        where: (t: any, { eq }: any) => eq(t.id, campaign.templateId)
-    });
+    const template = await db
+        .select()
+        .from(templates)
+        .where(eq(templates.id, campaign.templateId))
+        .limit(1)
+        .then((r) => r[0]);
     if (!template) throw new ApiError('Template not found', httpStatus.BAD_REQUEST);
 
     // 4. Determine Audience
     let audienceContacts: any[] = [];
     if (contactIds && contactIds.length > 0) {
         // Fetch specific contacts
-        const allContacts = await db.query.whatsappContacts.findMany({
-            where: (t: any, { eq }: any) => eq(t.chatbotId, chatbotId)
-        });
+        const allContacts = await db
+            .select()
+            .from(contacts)
+            .where(
+                and(
+                    eq(contacts.chatbotId, chatbotId),
+                    sql`'WHATSAPP' = ANY(${contacts.channels})`
+                )
+            );
         audienceContacts = allContacts.filter((c: any) => contactIds.includes(c.id));
     } else {
         // Fetch All
-        audienceContacts = await db.query.whatsappContacts.findMany({
-            where: (t: any, { eq }: any) => eq(t.chatbotId, chatbotId)
-        });
+        audienceContacts = await db
+            .select()
+            .from(contacts)
+            .where(
+                and(
+                    eq(contacts.chatbotId, chatbotId),
+                    sql`'WHATSAPP' = ANY(${contacts.channels})`
+                )
+            );
     }
 
     if (audienceContacts.length === 0) {
@@ -300,13 +353,12 @@ export const handleLaunchCampaign = async (
     }
 
     // 5. Update Campaign Status
-    await db.update(whatsappCampaigns)
+    await db.update(campaigns)
         .set({
             status: 'PROCESSING',
-            audienceSize: audienceContacts.length,
             sentCount: 0
         })
-        .where(eq(whatsappCampaigns.id, campaignId));
+        .where(eq(campaigns.id, campaignId));
 
 
     // 6. Send Messages (Simple Loop for MVP)
@@ -319,7 +371,7 @@ export const handleLaunchCampaign = async (
         const audienceId = createId();
 
         // Insert Audience Record (PENDING)
-        await db.insert(whatsappCampaignAudience).values({
+        await db.insert(campaignAudience).values({
             id: audienceId,
             campaignId: campaignId,
             contactId: contact.id,
@@ -349,27 +401,33 @@ export const handleLaunchCampaign = async (
             });
 
             // Update Audience Status (SENT)
-            await db.update(whatsappCampaignAudience)
-                .set({ status: 'SENT' })
-                .where(eq(whatsappCampaignAudience.id, audienceId));
+            await db.update(campaignAudience)
+                .set({ 
+                    status: 'SENT',
+                    sentAt: new Date()
+                })
+                .where(eq(campaignAudience.id, audienceId));
 
             sentCount++;
         } catch (error: any) {
             console.error(`Failed to send to ${contact.phoneNumber}`, error.response?.data || error.message);
             // Update Audience Status (FAILED)
-            await db.update(whatsappCampaignAudience)
-                .set({ status: 'FAILED' })
-                .where(eq(whatsappCampaignAudience.id, audienceId));
+            await db.update(campaignAudience)
+                .set({ 
+                    status: 'FAILED',
+                    errorMessage: error.response?.data?.error?.message || error.message
+                })
+                .where(eq(campaignAudience.id, audienceId));
         }
     }
 
     // 7. Update Campaign Status to COMPLETED
-    await db.update(whatsappCampaigns)
+    await db.update(campaigns)
         .set({
             status: 'COMPLETED',
             sentCount: sentCount
         })
-        .where(eq(whatsappCampaigns.id, campaignId));
+        .where(eq(campaigns.id, campaignId));
 
     return { success: true, message: `Campaign launched. Sent ${sentCount}/${audienceContacts.length} messages.` };
 };
@@ -377,19 +435,28 @@ export const handleLaunchCampaign = async (
 // --- Contacts Service ---
 
 export const handleGetContacts = async (chatbotId: string) => {
-    return await db.query.whatsappContacts.findMany({
-        where: (tbl: any, { eq }: any) => eq(tbl.chatbotId, chatbotId),
-        orderBy: (tbl: any, { desc }: any) => [desc(tbl.updatedAt)]
-    });
+    return await db
+        .select()
+        .from(contacts)
+        .where(
+            and(
+                eq(contacts.chatbotId, chatbotId),
+                sql`'WHATSAPP' = ANY(${contacts.channels})`
+            )
+        )
+        .orderBy(desc(contacts.updatedAt));
 };
 
 // --- Additional Stats ---
 
 export const handleGetCampaignStats = async (campaignId: string) => {
     // Basic stats from campaign table
-    const campaign = await db.query.whatsappCampaigns.findFirst({
-        where: (tbl: any, { eq }: any) => eq(tbl.id, campaignId)
-    });
+    const campaign = await db
+        .select()
+        .from(campaigns)
+        .where(eq(campaigns.id, campaignId))
+        .limit(1)
+        .then((r) => r[0]);
 
     // In future: Aggregate from audience table if we track individual status there
     return campaign;

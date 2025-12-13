@@ -5,7 +5,7 @@ import { db } from '../../loaders/postgres';
 import {
   whatsappAccounts as whatsappAccountsTable,
   chatBots as chatBotsTable,
-  whatsappContacts as whatsappContactsTable,
+  contacts as contactsTable,
   messages as messagesTable,
 } from '../../drizzle/schema';
 import {
@@ -496,23 +496,30 @@ export const handleGetWhatsAppChats = async (
       )
       .orderBy(desc(messagesTable.createdAt));
 
-    // Also get contacts from whatsappContacts table
+    // Also get contacts from contacts table (filtered for WhatsApp channel)
     const whatsappContacts = await db
       .select()
-      .from(whatsappContactsTable)
-      .where(eq(whatsappContactsTable.chatbotId, chatbotId));
+      .from(contactsTable)
+      .where(
+        and(
+          eq(contactsTable.chatbotId, chatbotId),
+          sql`'WHATSAPP' = ANY(${contactsTable.channels})`
+        )
+      );
 
     // Merge and format contacts
     const contactMap = new Map<string, any>();
     
-    // First, add contacts from whatsappContacts table (these have more complete info)
+    // First, add contacts from contacts table (these have more complete info)
     whatsappContacts.forEach(contact => {
-      contactMap.set(contact.phoneNumber, {
-        id: contact.id,
-        phoneNumber: contact.phoneNumber,
-        displayName: contact.displayName || contact.phoneNumber,
-        userMetadata: contact.userMetadata,
-      });
+      if (contact.phoneNumber) {
+        contactMap.set(contact.phoneNumber, {
+          id: contact.id,
+          phoneNumber: contact.phoneNumber,
+          displayName: contact.displayName || contact.phoneNumber,
+          metadata: contact.metadata,
+        });
+      }
     });
 
     // Then, add contacts from messages (only if not already in map, to get unique contacts)
@@ -558,7 +565,7 @@ export const handleGetWhatsAppContactMessages = async (
       throw new ApiError('Chatbot not found or does not belong to user', httpStatus.NOT_FOUND);
     }
 
-    // First, try to get the contact from whatsappContacts table to get the phone number
+    // First, try to get the contact from contacts table to get the phone number
     // contactId could be either the contact ID (UUID) or the phone number itself
     let phoneNumber: string | null = null;
     
@@ -570,18 +577,19 @@ export const handleGetWhatsAppContactMessages = async (
       // It's a contact ID, look up the phone number
       const contact = await db
         .select()
-        .from(whatsappContactsTable)
+        .from(contactsTable)
         .where(
           and(
-            eq(whatsappContactsTable.id, contactId),
-            eq(whatsappContactsTable.chatbotId, chatbotId)
+            eq(contactsTable.id, contactId),
+            eq(contactsTable.chatbotId, chatbotId),
+            sql`'WHATSAPP' = ANY(${contactsTable.channels})`
           )
         )
         .limit(1)
         .then((r) => r[0]);
       
       if (contact) {
-        phoneNumber = contact.phoneNumber;
+        phoneNumber = contact.phoneNumber || null;
       }
     } else {
       // It's likely a phone number
@@ -672,28 +680,53 @@ export const handleCreateWhatsAppContact = async (
     // Check if contact already exists
     const existing = await db
       .select()
-      .from(whatsappContactsTable)
+      .from(contactsTable)
       .where(
         and(
-          eq(whatsappContactsTable.chatbotId, chatbotId),
-          eq(whatsappContactsTable.phoneNumber, input.phoneNumber)
+          eq(contactsTable.chatbotId, chatbotId),
+          eq(contactsTable.phoneNumber, input.phoneNumber),
+          sql`'WHATSAPP' = ANY(${contactsTable.channels})`
         )
       )
       .limit(1)
       .then((r) => r[0]);
 
     if (existing) {
-      throw new ApiError('WhatsApp contact already exists for this chatbot and phone number', httpStatus.CONFLICT);
+      // Update existing contact to ensure WHATSAPP is in channels array
+      const updatedChannels = existing.channels.includes('WHATSAPP') 
+        ? existing.channels 
+        : [...existing.channels, 'WHATSAPP'];
+      
+      const [updatedContact] = await db
+        .update(contactsTable)
+        .set({
+          channels: updatedChannels,
+          displayName: input.displayName || existing.displayName,
+          updatedAt: new Date(),
+        })
+        .where(eq(contactsTable.id, existing.id))
+        .returning();
+
+      return {
+        id: updatedContact.id,
+        chatbotId: updatedContact.chatbotId,
+        phoneNumber: updatedContact.phoneNumber,
+        displayName: updatedContact.displayName,
+        userMetadata: updatedContact.metadata,
+        createdAt: updatedContact.createdAt,
+        updatedAt: updatedContact.updatedAt,
+      };
     }
 
-    // Create new contact
+    // Create new contact with WHATSAPP channel
     const [contact] = await db
-      .insert(whatsappContactsTable)
+      .insert(contactsTable)
       .values({
         chatbotId: chatbotId,
         phoneNumber: input.phoneNumber,
         displayName: input.displayName || null,
-        userMetadata: {}, // Default empty metadata
+        channels: ['WHATSAPP'],
+        metadata: {}, // Default empty metadata
       })
       .returning();
 
@@ -702,7 +735,7 @@ export const handleCreateWhatsAppContact = async (
       chatbotId: contact.chatbotId,
       phoneNumber: contact.phoneNumber,
       displayName: contact.displayName,
-      userMetadata: contact.userMetadata,
+      userMetadata: contact.metadata,
       createdAt: contact.createdAt,
       updatedAt: contact.updatedAt,
     };
@@ -809,11 +842,12 @@ export const handleGetWhatsAppAnalytics = async (
     `);
     const uniqueContacts = parseInt((uniqueContactsResult as any).rows[0]?.count ?? '0', 10);
 
-    // Get total contacts from whatsappContacts table
+    // Get total contacts from contacts table (WhatsApp channel)
     const totalContactsResult = await db.execute(sql<{ count: string }>`
       SELECT COUNT(*)::text AS count
-      FROM whatsapp_contacts
+      FROM contacts
       WHERE chatbot_id = ${chatbotId}
+        AND 'WHATSAPP' = ANY(channels)
     `);
     const totalContacts = parseInt((totalContactsResult as any).rows[0]?.count ?? '0', 10);
 
