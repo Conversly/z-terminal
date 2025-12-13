@@ -4,6 +4,9 @@ import {
     getTemplates,
     syncTemplates,
     createTemplate,
+    createDefaultTemplate,
+    updateTemplate,
+    getDefaultTemplates,
     deleteTemplate,
     getCampaigns,
     createCampaign,
@@ -22,8 +25,11 @@ const app = express.Router();
 
 // Templates
 app.get('/templates', auth, getTemplates);
+app.get('/templates/defaults', auth, getDefaultTemplates); // Get default templates from Meta
 app.post('/templates/sync', auth, validate('body', syncTemplatesSchema), syncTemplates);
 app.post('/templates', auth, validate('body', createTemplateSchema), createTemplate);
+app.post('/templates/default', auth, validate('body', createTemplateSchema), createDefaultTemplate); // Create default template with save/edit options
+app.patch('/templates/:id', auth, updateTemplate); // Update template (edit)
 app.delete('/templates/:id', auth, deleteTemplate);
 
 // Campaigns

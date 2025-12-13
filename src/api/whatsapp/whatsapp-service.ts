@@ -303,7 +303,7 @@ export const handleMarkMessagesAsRead = async (
     }
 
     // Mark each message as read via Meta API
-    const apiVersion = process.env.WHATSAPP_API_VERSION || 'v20.0';
+    const apiVersion = process.env.WHATSAPP_API_VERSION || 'v24.0';
     const url = `https://graph.facebook.com/${apiVersion}/${integration.phoneNumberId}/messages`;
     let successCount = 0;
     const errors: string[] = [];
@@ -396,43 +396,129 @@ export const handleSendWhatsAppMessage = async (
     }
 
     // Send message via WhatsApp API
-    const apiVersion = process.env.WHATSAPP_API_VERSION || 'v20.0';
-    const url = `https://graph.facebook.com/${apiVersion}/${integration.phoneNumberId}/messages`;
-    const payload = {
-      messaging_product: 'whatsapp',
+    // Use v24.0 as specified and get phoneNumberId and accessToken from database
+    const apiVersion = 'v24.0';
+    const phoneNumberId = integration.phoneNumberId;
+    const accessToken = integration.accessToken;
+    const url = `https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`;
+    
+    // Determine message type - default to text if not specified
+    const messageType = input.type || (input.template ? 'template' : 'text');
+    
+    let payload: any;
+    
+    if (messageType === 'template' && input.template) {
+      // Template message - match exact structure from curl examples
+      // Ensure language is an object with code property
+      const languageCode = typeof input.template.language === 'string' 
+        ? input.template.language 
+        : (input.template.language?.code || 'en_US');
+      
+      // Check if components is explicitly provided as empty array
+      // Some templates require components (like image_cta, carousel, order_confirmation)
+      const hasComponents = input.template.components && Array.isArray(input.template.components) && input.template.components.length > 0;
+      const hasEmptyComponents = input.template.components && Array.isArray(input.template.components) && input.template.components.length === 0;
+      
+      // Templates that typically require components based on naming patterns
+      const templatesRequiringComponents = ['_cta_', '_carousel_', '_order_', '_confirmation_', '_interactive_'];
+      const templateRequiresComponents = templatesRequiringComponents.some(pattern => 
+        input.template!.name.toLowerCase().includes(pattern.toLowerCase())
+      );
+      
+      if (hasEmptyComponents && templateRequiresComponents) {
+        throw new ApiError(
+          `Template "${input.template.name}" requires components (e.g., header with image, body parameters, or carousel cards), but an empty components array was provided. Please provide the required components.`,
+          httpStatus.BAD_REQUEST
+        );
+      }
+      
+      payload = {
+        messaging_product: 'whatsapp',
+        to: input.to,
+        type: 'template',
+        template: {
+          name: input.template.name,
+          language: {
+            code: languageCode,
+          },
+        },
+      };
+      
+      // Add components if provided (for carousel, header, body parameters, etc.)
+      // Components structure matches curl examples exactly
+      // Only include components if they exist and have at least one element
+      if (hasComponents) {
+        payload.template.components = input.template.components;
+      }
+      // Note: If components is not provided or is an empty array [], it won't be included
+      // Plain text templates work fine without components
+      // Templates requiring components will fail at WhatsApp API level if missing
+    } else {
+      // Text message
+      if (!input.message) {
+        throw new ApiError('Message text is required for text messages', httpStatus.BAD_REQUEST);
+      }
+      payload = {
+        messaging_product: 'whatsapp',
+        to: input.to,
+        type: 'text',
+        text: {
+          preview_url: false, // Explicitly set preview_url as per API docs
+          body: input.message,
+        },
+      };
+    }
+
+    // Log the request for debugging (without sensitive data)
+    logger.info('Sending WhatsApp message', {
+      url,
+      phoneNumberId,
       to: input.to,
-      type: 'text',
-      text: {
-        preview_url: false, // Explicitly set preview_url as per API docs
-        body: input.message,
-      },
-    };
+      messageType,
+      templateName: input.template?.name,
+      hasComponents: !!(input.template?.components && input.template.components.length > 0),
+      componentsCount: input.template?.components?.length || 0,
+      payloadStructure: JSON.stringify(payload, null, 2),
+    });
 
     const response = await axios.post(url, payload, {
       headers: {
-        Authorization: `Bearer ${integration.accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
     });
 
     const whatsappMessageId = response.data?.messages?.[0]?.id;
+    
+    logger.info('WhatsApp message sent successfully', {
+      messageId: whatsappMessageId,
+      to: input.to,
+    });
 
     // Save the sent message to the messages table for chat interface
     try {
       // Normalize phone number (remove + if present for consistency with database)
       const phoneNumber = input.to.startsWith('+') ? input.to.substring(1) : input.to;
       const uniqueConvId = `whatsapp_${phoneNumber}_${chatbotId}`;
+      
+      // Determine content to save
+      let contentToSave = input.message || '';
+      if (messageType === 'template' && input.template) {
+        contentToSave = `Template: ${input.template.name}`;
+      }
 
       await db.insert(messagesTable).values({
         chatbotId: chatbotId,
         channel: 'WHATSAPP',
         type: 'assistant', // Sent messages are from assistant/bot
-        content: input.message,
+        content: contentToSave,
         uniqueConvId: uniqueConvId,
         channelMessageMetadata: {
           phoneNumber: phoneNumber,
           whatsappMessageId: whatsappMessageId,
           phoneNumberId: integration.phoneNumberId,
+          messageType: messageType,
+          template: messageType === 'template' ? input.template : undefined,
         },
         citations: [],
         feedback: 0,
@@ -447,11 +533,37 @@ export const handleSendWhatsAppMessage = async (
       messageId: whatsappMessageId,
     };
   } catch (error: any) {
-    logger.error('Error sending WhatsApp message:', error);
+    logger.error('Error sending WhatsApp message:', {
+      error: error.message,
+      stack: error.stack,
+      response: error.response?.data,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      url: error.config?.url,
+      payload: error.config?.data ? JSON.parse(error.config.data) : null,
+    });
+    
     if (axios.isAxiosError(error)) {
+      const errorMessage = error.response?.data?.error?.message || error.message;
+      const errorCode = error.response?.data?.error?.code;
+      const errorType = error.response?.data?.error?.type;
+      
+      logger.error('WhatsApp API error details:', {
+        message: errorMessage,
+        code: errorCode,
+        type: errorType,
+        fullError: error.response?.data?.error,
+      });
+      
       return {
         success: false,
-        error: error.response?.data?.error?.message || error.message,
+        error: errorMessage || error.message,
+      };
+    }
+    if (error instanceof ApiError) {
+      return {
+        success: false,
+        error: error.message,
       };
     }
     return {
@@ -648,6 +760,13 @@ export const handleCreateWhatsAppContact = async (
   input: CreateWhatsAppContactInput
 ): Promise<WhatsAppContactResponse> => {
   try {
+    // Normalize phone number: remove spaces, dashes, and ensure consistent format
+    let normalizedPhone = input.phoneNumber.replace(/[\s\-\(\)]/g, '');
+    // Remove leading + if present for consistency (we'll store without +)
+    if (normalizedPhone.startsWith('+')) {
+      normalizedPhone = normalizedPhone.substring(1);
+    }
+
     // Verify chatbot ownership
     const chatbot = await db
       .select()
@@ -677,14 +796,14 @@ export const handleCreateWhatsAppContact = async (
       throw new ApiError('WhatsApp integration not found', httpStatus.NOT_FOUND);
     }
 
-    // Check if contact already exists
+    // Check if contact already exists (using normalized phone number)
     const existing = await db
       .select()
       .from(contactsTable)
       .where(
         and(
           eq(contactsTable.chatbotId, chatbotId),
-          eq(contactsTable.phoneNumber, input.phoneNumber),
+          eq(contactsTable.phoneNumber, normalizedPhone),
           sql`'WHATSAPP' = ANY(${contactsTable.channels})`
         )
       )
@@ -702,6 +821,7 @@ export const handleCreateWhatsAppContact = async (
         .set({
           channels: updatedChannels,
           displayName: input.displayName || existing.displayName,
+          whatsappUserMetadata: existing.whatsappUserMetadata ?? {},
           updatedAt: new Date(),
         })
         .where(eq(contactsTable.id, existing.id))
@@ -710,7 +830,7 @@ export const handleCreateWhatsAppContact = async (
       return {
         id: updatedContact.id,
         chatbotId: updatedContact.chatbotId,
-        phoneNumber: updatedContact.phoneNumber,
+        phoneNumber: updatedContact.phoneNumber || normalizedPhone,
         displayName: updatedContact.displayName,
         userMetadata: updatedContact.metadata,
         createdAt: updatedContact.createdAt,
@@ -718,22 +838,23 @@ export const handleCreateWhatsAppContact = async (
       };
     }
 
-    // Create new contact with WHATSAPP channel
+    // Create new contact with WHATSAPP channel (using normalized phone number)
     const [contact] = await db
       .insert(contactsTable)
       .values({
         chatbotId: chatbotId,
-        phoneNumber: input.phoneNumber,
+        phoneNumber: normalizedPhone,
         displayName: input.displayName || null,
         channels: ['WHATSAPP'],
         metadata: {}, // Default empty metadata
+        whatsappUserMetadata: {}, // Default empty WhatsApp user metadata
       })
       .returning();
 
     return {
       id: contact.id,
       chatbotId: contact.chatbotId,
-      phoneNumber: contact.phoneNumber,
+      phoneNumber: contact.phoneNumber || normalizedPhone,
       displayName: contact.displayName,
       userMetadata: contact.metadata,
       createdAt: contact.createdAt,
@@ -744,7 +865,18 @@ export const handleCreateWhatsAppContact = async (
       throw error;
     }
     logger.error('Error creating WhatsApp contact:', error);
-    throw new ApiError('Error creating WhatsApp contact', httpStatus.INTERNAL_SERVER_ERROR);
+    logger.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      userId,
+      chatbotId,
+      whatsappId,
+      phoneNumber: input.phoneNumber,
+    });
+    throw new ApiError(
+      `Error creating WhatsApp contact: ${error.message || 'Unknown error'}`,
+      httpStatus.INTERNAL_SERVER_ERROR
+    );
   }
 };
 

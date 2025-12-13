@@ -66,23 +66,75 @@ export const sendMessageSchema = yup.object().shape({
     .string()
     .required('Recipient phone number is required')
     .matches(/^\d+$/, 'Phone number must contain only digits'),
+  type: yup
+    .string()
+    .oneOf(['text', 'template'], 'Type must be either "text" or "template"')
+    .optional(),
   message: yup
     .string()
-    .required('Message is required')
-    .min(1, 'Message must not be empty')
-    .max(4096, 'Message is too long (max 4096 characters)'),
+    .when('type', {
+      is: 'text',
+      then: (schema) => schema.required('Message is required for text messages').min(1, 'Message must not be empty').max(4096, 'Message is too long (max 4096 characters)'),
+      otherwise: (schema) => schema.optional(),
+    }),
+  template: yup
+    .object()
+    .when('type', {
+      is: 'template',
+      then: (schema) => schema.required('Template is required for template messages').shape({
+        name: yup.string().required('Template name is required'),
+        language: yup.object().shape({
+          code: yup.string().required('Language code is required'),
+        }).required('Language is required'),
+        components: yup.array().optional(),
+      }),
+      otherwise: (schema) => schema.optional(),
+    }),
+}).test('message-or-template', 'Either message (for text) or template (for template) must be provided', function(value) {
+  const { message, template, type } = value || {};
+  
+  // If type is explicitly set
+  if (type === 'template') {
+    return !!template;
+  }
+  if (type === 'text') {
+    return !!message;
+  }
+  
+  // If type is not set, infer from what's provided
+  if (!type) {
+    if (template) {
+      return true; // Template provided, assume template type
+    }
+    if (message) {
+      return true; // Message provided, assume text type
+    }
+    return false; // Neither provided
+  }
+  
+  return true;
 });
 
 export const createWhatsAppContactSchema = yup.object().shape({
   phoneNumber: yup
     .string()
     .required('Phone number is required')
-    .matches(/^\+?[1-9]\d{1,14}$/, 'Phone number must be in E.164 format (e.g., +1234567890)'),
+    .transform((value) => {
+      // Normalize phone number: remove spaces, dashes, parentheses
+      if (!value) return value;
+      return value.replace(/[\s\-\(\)]/g, '');
+    })
+    .matches(/^\+?[1-9]\d{1,14}$/, 'Phone number must be in E.164 format (e.g., +1234567890 or 1234567890)'),
   displayName: yup
     .string()
     .optional()
+    .nullable()
     .max(255, 'Display name must not exceed 255 characters'),
-});
+  email: yup
+    .string()
+    .optional()
+    .nullable(),
+}).strict(false); // Allow extra fields like 'email' to be present but ignore them
 
 // --- Marketing Schemas ---
 

@@ -647,6 +647,7 @@ export const contacts = pgTable('contacts', {
   email: varchar('email', { length: 255 }),
   channels: text('channels').array().notNull().default(sql`ARRAY[]::text[]`), // Array of channels: ['WHATSAPP', 'SMS', 'EMAIL']
   metadata: json('metadata').notNull().default(sql`'{}'::json`), // Channel-specific metadata
+  whatsappUserMetadata: json('whatsapp_user_metadata').notNull().default(sql`'{}'::json`), // WhatsApp-specific user metadata
   createdAt: timestamp('created_at', { mode: 'date', precision: 6 }).defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date', precision: 6 }).defaultNow(),
 }, (table) => [
@@ -693,7 +694,7 @@ export const analyticsPerDay = pgTable('analytics_per_day', {
 ]);
 
 // --- Enums for Marketing ---
-export const templateStatus = pgEnum('TemplateStatus', ['APPROVED', 'PENDING', 'REJECTED', 'ACTIVE']);
+export const templateStatus = pgEnum('TemplateStatus', ['APPROVED', 'PENDING', 'REJECTED', 'ACTIVE', 'DRAFT']);
 export const campaignStatus = pgEnum('CampaignStatus', ['DRAFT', 'SCHEDULED', 'PROCESSING', 'COMPLETED', 'FAILED']);
 export const campaignAudienceStatus = pgEnum('CampaignAudienceStatus', ['PENDING', 'SENT', 'DELIVERED', 'READ', 'FAILED']);
 

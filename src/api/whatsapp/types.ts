@@ -143,7 +143,40 @@ export interface WhatsAppWebhookPayload {
 
 export interface SendWhatsAppMessageInput {
   to: string;
-  message: string;
+  message?: string; // For text messages
+  type?: 'text' | 'template'; // Message type
+  template?: {
+    name: string;
+    language: {
+      code: string;
+    };
+    components?: Array<{
+      type: 'body' | 'header' | 'button' | 'carousel';
+      parameters?: Array<{
+        type: 'text' | 'image' | 'video' | 'document';
+        text?: string;
+        image?: { link: string };
+        video?: { link: string };
+        document?: { link: string };
+      }>;
+      sub_type?: 'url' | 'quick_reply';
+      index?: number;
+      // For carousel type
+      cards?: Array<{
+        card_index: number;
+        components?: Array<{
+          type: 'header' | 'body' | 'button';
+          parameters?: Array<{
+            type: 'text' | 'image' | 'video' | 'document';
+            text?: string;
+            image?: { link: string };
+            video?: { link: string };
+            document?: { link: string };
+          }>;
+        }>;
+      }>;
+    }>;
+  };
 }
 
 export interface SendWhatsAppMessageResponse {
@@ -195,6 +228,8 @@ export interface CreateTemplateInput {
   category: string;
   language: string;
   components: any[];
+  allowCategoryChange?: boolean;
+  saveAsDraft?: boolean;
 }
 
 export interface CreateCampaignInput {

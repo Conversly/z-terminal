@@ -120,13 +120,15 @@ export const deleteWhatsAppIntegration = catchAsync(
 // Note: Webhook handlers (webhookVerify, webhookMessage) have been moved to standalone whatsapp-webhook-service
 // The webhook service handles all incoming WhatsApp messages for all clients/users
 
-// Send WhatsApp message
+// Send WhatsApp message (supports both text and template messages)
 export const sendMessage = catchAsync(
   async (req: jwtReq, res: Response, next: NextFunction) => {
     const chatbotId = req.query.chatbotId as string;
     const input: SendWhatsAppMessageInput = {
       to: req.body.to,
       message: req.body.message,
+      type: req.body.type || (req.body.template ? 'template' : 'text'),
+      template: req.body.template,
     };
 
     const result = await handleSendWhatsAppMessage(
